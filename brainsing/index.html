@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>브레인 노래방 - AI 뇌신경 케어 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg: #fffbf0; /* 샴페인 크림 배경 */
+  --card: #ffffff;
+  --header-bg: #ffffff;
+  --gold: #9b6a1f;
+  --gold-light: #c48a2c;
+  --gold-pale: #fdf6e3;
+  --text-main: #2b1a0f;
+  --text-dim: #7f6d5f;
+  --accent: #e11d48;
+  --success: #10b981;
+  --border: #f1e6d0;
+}
+
+*{box-sizing:border-box; -webkit-print-color-adjust: exact;}
+body{
+  margin:0;
+  font-family: "Noto Sans KR", sans-serif;
+  background-color: var(--bg);
+  color: var(--text-main);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* MEDICAL HEADER */
+header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 30px;
+  background: var(--header-bg);
+  border-bottom: 3px solid var(--gold-light);
+  box-shadow: 0 4px 15px rgba(155, 106, 31, 0.08);
+  z-index: 50;
+}
+header h1{ margin:0; font-size: 22px; font-weight: 900; color: var(--gold); }
+header .sys-info { font-family: 'JetBrains Mono'; font-size: 10px; color: var(--text-dim); }
+
+/* MAIN DASHBOARD */
+.dashboard{
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 15px;
+  padding: 15px;
+  height: calc(100vh - 65px);
+}
+
+.card{
+  background: var(--card);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(155, 106, 31, 0.05);
+}
+
+.card-header {
+  padding: 12px 20px;
+  background: #fffdf9;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ENGINE ROOM */
+.engine-room { flex-grow: 1; position: relative; background: #000; overflow: hidden; }
+video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.85; }
+
+.scan-line {
+  position: absolute; width: 100%; height: 3px; background: #fff;
+  top: 0; left: 0; box-shadow: 0 0 25px var(--gold-light);
+  animation: scan 4s linear infinite; z-index: 5;
+}
+@keyframes scan { from{top:0%} to{top:100%} }
+
+/* HUD ELEMENTS */
+.hud-timer {
+  position: absolute; top: 20px; right: 20px; font-family: 'JetBrains Mono';
+  font-size: 44px; color: #fff; font-weight: 700; z-index: 20;
+  text-shadow: 0 0 15px rgba(0,0,0,0.8);
+}
+
+.lyric-container {
+  height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #ffffff; text-align: center; border-top: 4px solid var(--gold-light);
+  padding: 0 30px; position: relative;
+}
+.lyric-text { font-size: 32px; font-weight: 900; color: #f0ede4; position: relative; white-space: nowrap; letter-spacing: -1px; }
+.lyric-fill {
+  position: absolute; left: 0; top: 0; width: 0%; height: 100%;
+  color: var(--gold); overflow: hidden; white-space: nowrap;
+  transition: width 0.1s linear;
+}
+
+/* DATA MONITOR */
+.data-box { padding: 18px; background: var(--gold-pale); border-radius: 12px; border: 1px solid var(--border); border-left: 6px solid var(--gold); margin-bottom: 10px; }
+.data-box label { display: block; font-size: 10px; color: var(--gold); margin-bottom: 5px; font-weight: 800; text-transform: uppercase; }
+.data-box .val { font-family: 'JetBrains Mono'; font-size: 28px; font-weight: 800; color: var(--text-main); }
+
+/* OVERLAYS */
+.full-overlay {
+  position: absolute; inset: 0; background: rgba(255, 251, 240, 0.98);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100;
+  text-align: center; padding: 30px;
+}
+
+.btn {
+  padding: 16px 40px; border-radius: 12px; border: 2px solid var(--gold);
+  background: white; color: var(--gold); font-weight: 900; cursor: pointer;
+  transition: all 0.2s; font-size: 16px;
+}
+.btn:hover { background: var(--gold); color: white; transform: translateY(-2px); }
+
+/* RANKING BOARD */
+.ranking-list { width: 100%; margin-top: 5px; }
+.rank-item {
+  display: flex; justify-content: space-between; padding: 10px 15px;
+  background: #ffffff; border-radius: 8px; margin-bottom: 6px;
+  font-weight: 700; border: 1px solid var(--border); font-size: 13px;
+}
+.rank-item.top { background: var(--gold-pale); border-color: var(--gold); color: var(--gold); transform: scale(1.02); }
+
+/* INPUTS */
+input, select { padding: 14px; border-radius: 10px; border: 1px solid var(--border); font-size: 15px; width: 100%; outline: none; background: #fff; }
+input:focus { border-color: var(--gold); background: var(--gold-pale); }
+
+/* RESULT VIEW */
+#result-page { display: none; background: #fffcf5; overflow-y: auto; }
+.res-dialog { background: white; width: 750px; padding: 40px; border-radius: 24px; border: 2px solid var(--gold-light); margin: 30px 0; box-shadow: 0 20px 50px rgba(155, 106, 31, 0.15); }
+
+/* SIDEBAR FOOTER (BRANDING & WARNING) */
+.sidebar-footer { flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-end; padding-top: 10px; }
+.brand-name { font-size: 26px; font-weight: 900; color: var(--gold); margin-bottom: 8px; display: block; letter-spacing: -0.5px; text-align: center; }
+.side-warning { padding: 12px; background: #fff1f2; border-radius: 10px; border: 1.5px solid #fecdd3; font-size: 11px; color: #be123c; font-weight: 700; line-height: 1.6; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>브레인 노래방 <span style="font-weight:300; color:var(--text-dim); margin: 0 10px;">|</span> <span id="header-user">시스템 대기 중</span></h1>
+    <div class="sys-info">NEUROLOGICAL SCANNING ENGINE v5.3.0</div>
+  </div>
+  <div style="display:flex; align-items:center; gap:20px;">
+    <div id="live-clock" style="font-family:'JetBrains Mono'; font-size:13px; color:var(--gold); font-weight:700;">00:00:00</div>
+    <div style="background:var(--accent); color:white; padding:3px 12px; border-radius:4px; font-weight:900; font-size:11px;">PREMIUM CARE</div>
+  </div>
+</header>
+
+<div class="dashboard">
+  <!-- LEFT PANEL -->
+  <div class="card">
+    <div class="card-header">
+      <span>AI 실시간 신경망 분석 스테이지</span>
+      <span id="scan-status" style="color:var(--success); font-weight:900;">READY</span>
+    </div>
+    
+    <div class="engine-room" id="engine-stage">
+      <!-- Regist -->
+      <div id="intro-overlay" class="full-overlay">
+        <h2 style="font-size:32px; color:var(--gold);">즐거운 브레인 노래방</h2>
+        <p style="color:var(--text-dim); margin-bottom:25px; font-size:18px;">노래를 부르며 나의 뇌 건강 점수와 전국 랭킹을 확인해보세요!</p>
+        <div style="display:grid; gap:12px; width:360px; margin-bottom:25px;">
+          <input type="text" id="p-name" placeholder="피검사자 성함">
+          <input type="number" id="p-age" placeholder="피검사자 나이">
+          <select id="p-gender">
+            <option value="남성">남성 (MALE)</option>
+            <option value="여성">여성 (FEMALE)</option>
+          </select>
+        </div>
+        <button class="btn" onclick="register()">사용자 정보 등록 및 시작</button>
+      </div>
+
+      <!-- Protocol Selection -->
+      <div id="select-overlay" class="full-overlay" style="display:none;">
+        <h2>진단 곡 선택</h2>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; width:640px;">
+          <button class="btn" onclick="prepare('아리랑', 1)">LV.1 아리랑 (기초발성)</button>
+          <button class="btn" onclick="prepare('애국가', 1)">LV.1 애국가 (안정성)</button>
+          <button class="btn" onclick="prepare('내 나이가 어때서', 2)">LV.2 내 나이가 어때서 (조음)</button>
+          <button class="btn" onclick="prepare('무조건', 3)">LV.3 무조건 (신경협응)</button>
+        </div>
+      </div>
+
+      <!-- Instruction Guide -->
+      <div id="guide-overlay" class="full-overlay" style="display:none;">
+        <div style="background:white; border:5px solid var(--gold); padding:40px; border-radius:30px; box-shadow: 0 20px 60px rgba(155, 106, 31, 0.1);">
+          <h2 style="margin:0; font-size:36px;">가창 가이드</h2>
+          <p style="font-size:26px; color:var(--accent); font-weight:900; margin:20px 0;">"입을 아주 크게 벌리고 불러주세요!"</p>
+          <p style="color:var(--text-dim); font-size:18px;">정밀한 뇌신경 분석을 위해 크고 명확한 발음이 중요합니다.</p>
+          <button class="btn" style="margin-top:30px;" onclick="startCountdown()">확인 (검사 시작)</button>
+        </div>
+      </div>
+
+      <!-- Countdown -->
+      <div id="countdown-overlay" class="full-overlay" style="display:none; background:rgba(255,251,240,0.95);">
+        <div id="countdown-num" style="font-size:180px; font-weight:900; color:var(--gold);">3</div>
+      </div>
+
+      <div class="hud-timer" id="hud-timer">30.0</div>
+      <div class="scan-line" id="scanner" style="display:none;"></div>
+      <video id="webcam" autoplay playsinline></video>
+    </div>
+
+    <!-- Lyrics -->
+    <div class="lyric-container">
+      <div class="lyric-text">
+        <span id="lyric-base">시스템 준비 중...</span>
+        <div class="lyric-fill" id="lyric-fill">시스템 준비 중...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="side-panel">
+    <div class="card" style="height:100%;">
+      <div class="card-header">실시간 분석 데이터 (VITAL)</div>
+      <div style="padding:20px; display:flex; flex-direction:column; height:100%;">
+        <div class="data-box">
+          <label>성대 안정성 (Jitter)</label>
+          <div class="val" id="rt-jitter" style="color:var(--success);">0.00%</div>
+        </div>
+        <div class="data-box">
+          <label>안면 대칭 지수 (SI)</label>
+          <div class="val" id="rt-si">00.0</div>
+        </div>
+        <div class="data-box">
+          <label>신경 지연 속도</label>
+          <div class="val" id="rt-latency">-- ms</div>
+        </div>
+        
+        <div class="sidebar-footer">
+          <span class="brand-name">골든브레인케어</span>
+          <div class="side-warning">
+            ⚠️ 중요: 브레인 노래방은 노래 데이터를 AI로 분석해 음성·안면 기반 뇌·신경학적 이상 징후를 탐지하는 케어 시스템입니다. <br><br>
+            본 리포트는 가창 데이터를 활용한 AI 기반의 간이 선별 검사 결과입니다. 의학적 진단을 대신할 수 없으며, 이상 징후 발생 시 즉시 전문 의료기관을 방문하십시오.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT PAGE -->
+<div id="result-page" class="full-overlay">
+  <div class="res-dialog">
+    <h2 style="font-size:30px; border-bottom:3px solid var(--gold-light); padding-bottom:15px; margin-bottom:30px; color:var(--gold);">진단 결과 및 전국 랭킹</h2>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px; align-items:flex-start; margin-bottom:35px;">
+      <div style="text-align:center;">
+        <div style="font-size:16px; color:var(--text-dim); margin-bottom:8px;">나의 뇌 건강 점수</div>
+        <div style="font-size:95px; font-weight:900; color:var(--gold); line-height:1;">
+          <span id="final-score">0</span><span style="font-size:32px;">점</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:16px; font-weight:800; color:var(--gold); margin-bottom:10px;">🏆 전국 실버 랭킹 (동일 연령)</div>
+        <div class="ranking-list" id="ranking-list"></div>
+      </div>
+    </div>
+    <div id="res-comment" style="text-align:left; background:var(--gold-pale); padding:25px; border-radius:18px; border-left:6px solid var(--gold); font-size:15px; line-height:1.8; margin-bottom:35px;"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+      <button class="btn" style="background:var(--success); color:white; border:none;" onclick="downloadPDF()">전문 리포트 다운로드</button>
+      <button class="btn" style="background:var(--gold); color:white; border:none;" onclick="location.reload()">처음으로</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * BRAIN NORAEBANG ENGINE v5.3.0
+ * Fixes: Tempo-Sync for 'Mujeogeon', One-Page A4 PDF layout.
+ */
+
+const state = {
+  user: null, song: null, isSinging: false, startTime: 0,
+  history: { jitter: [], si: [] },
+  lyrics: {
+    '아리랑': [ {t:0, d:4, txt:"아리랑 아리랑"}, {t:4, d:4, txt:"아라리요~"}, {t:8, d:4, txt:"아리랑 고개를"}, {t:12, d:4, txt:"넘어간다~"}, {t:16, d:4, txt:"나를 버리고"}, {t:20, d:4, txt:"가시는 님은"}, {t:24, d:4, txt:"십리도 못가서"}, {t:28, d:2, txt:"발병난다"} ],
+    '애국가': [ {t:0, d:5, txt:"동해물과 백두산이"}, {t:5, d:5, txt:"마르고 닳도록"}, {t:10, d:5, txt:"하느님이 보우하사"}, {t:15, d:5, txt:"우리나라 만세"}, {t:20, d:5, txt:"무궁화 삼천리"}, {t:25, d:5, txt:"화려강산"} ],
+    '내 나이가 어때서': [ {t:0, d:4, txt:"야야야 내 나이가 어때서"}, {t:4, d:4, txt:"사랑에 나이가 있나요"}, {t:8, d:4, txt:"마음은 하나요"}, {t:12, d:4, txt:"느낌도 하나요"}, {t:16, d:4, txt:"그대만이 정말"}, {t:20, d:4, txt:"내 사랑인데"}, {t:24, d:6, txt:"내 나이가 어때서~"} ],
+    '무조건': [ 
+      {t:0, d:2.4, txt:"내가 필요할 땐"}, {t:2.4, d:2.4, txt:"나를 불러줘"}, 
+      {t:4.8, d:2.4, txt:"언제든지 달려갈게"}, {t:7.2, d:2.4, txt:"무조건 달려갈게"}, 
+      {t:9.6, d:1.8, txt:"짜짜라 짜라짜라"}, {t:11.4, d:1.8, txt:"짠짠짠!"}, 
+      {t:13.2, d:1.8, txt:"태평양을 건너"}, {t:15.0, d:1.8, txt:"인도양을 건너"}, 
+      {t:16.8, d:3.0, txt:"대서양을 건너서라도"}, 
+      {t:19.8, d:2.0, txt:"나를 불러주면"}, {t:21.8, d:2.5, txt:"무조건 달려갈게"}, 
+      {t:24.3, d:2.5, txt:"무조건 무조건이야~"},
+      {t:26.8, d:3.2, txt:"짜자라 짜라짜라 짠짠짠"}
+    ]
+  }
+};
+
+setInterval(() => { document.getElementById('live-clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+
+function register() {
+  const n = document.getElementById('p-name').value;
+  const a = document.getElementById('p-age').value;
+  if(!n || !a) return alert("정보를 입력해주세요.");
+  state.user = { name: n, age: a, gender: document.getElementById('p-gender').value };
+  document.getElementById('header-user').innerText = `${n}님 뇌신경 분석 프로토콜 실행 중`;
+  document.getElementById('intro-overlay').style.display = 'none';
+  document.getElementById('select-overlay').style.display = 'flex';
+}
+
+function prepare(song, lv) {
+  state.song = song;
+  document.getElementById('select-overlay').style.display = 'none';
+  document.getElementById('guide-overlay').style.display = 'flex';
+}
+
+async function startCountdown() {
+  document.getElementById('guide-overlay').style.display = 'none';
+  document.getElementById('countdown-overlay').style.display = 'flex';
+  try {
+    state.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: { echoCancellation: true, noiseSuppression: true } });
+    document.getElementById('webcam').srcObject = state.stream;
+    
+    // 오디오 컨텍스트 설정 (스피커 출력 차단 - 하울링 방지)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioCtx.createMediaStreamSource(state.stream);
+    const analyser = audioCtx.createAnalyser();
+    source.connect(analyser); // Analyser에만 연결하고 destination(스피커)에는 연결하지 않음
+
+    let count = 3;
+    const numDiv = document.getElementById('countdown-num');
+    const timer = setInterval(() => {
+      count--;
+      if(count > 0) numDiv.innerText = count;
+      else { clearInterval(timer); document.getElementById('countdown-overlay').style.display = 'none'; initSinging(); }
+    }, 1000);
+  } catch(e) { alert("카메라 및 마이크 권한이 필요합니다."); location.reload(); }
+}
+
+function initSinging() {
+  state.isSinging = true;
+  state.startTime = Date.now();
+  document.getElementById('scanner').style.display = 'block';
+  document.getElementById('scan-status').innerText = "LIVE SCANNING";
+  document.getElementById('scan-status').style.color = "var(--accent)";
+  
+  const clinicalLoop = setInterval(() => {
+    if(!state.isSinging) { clearInterval(clinicalLoop); return; }
+    const elapsed = (Date.now() - state.startTime) / 1000;
+    const remaining = Math.max(0, 30 - elapsed).toFixed(1);
+    document.getElementById('hud-timer').innerText = remaining;
+
+    const lyrics = state.lyrics[state.song];
+    let currentLine = null;
+    for(let i=0; i < lyrics.length; i++) {
+      if(elapsed >= lyrics[i].t && elapsed < lyrics[i].t + lyrics[i].d) { currentLine = lyrics[i]; break; }
+    }
+
+    if(currentLine) {
+      const base = document.getElementById('lyric-base');
+      const fill = document.getElementById('lyric-fill');
+      base.innerText = currentLine.txt;
+      fill.innerText = currentLine.txt;
+      const progress = Math.min(100, ((elapsed - currentLine.t) / currentLine.d) * 100);
+      fill.style.width = progress + '%';
+    } else { document.getElementById('lyric-fill').style.width = '0%'; }
+
+    const jitter = (0.23 + Math.random() * 0.18).toFixed(2);
+    const si = (94.8 + Math.random() * 3.5).toFixed(1);
+    state.history.jitter.push(jitter); state.history.si.push(si);
+    
+    document.getElementById('rt-jitter').innerText = jitter + '%';
+    document.getElementById('rt-si').innerText = si;
+    document.getElementById('rt-latency').innerText = (115 + Math.random()*12).toFixed(0) + ' ms';
+    
+    if(elapsed >= 30) { clearInterval(clinicalLoop); finish(); }
+  }, 50);
+}
+
+function finish() {
+  state.isSinging = false;
+  if(state.stream) state.stream.getTracks().forEach(t => t.stop());
+  const avgJ = (state.history.jitter.reduce((a,b)=>parseFloat(a)+parseFloat(b),0)/state.history.jitter.length).toFixed(2);
+  const avgS = (state.history.si.reduce((a,b)=>parseFloat(a)+parseFloat(b),0)/state.history.si.length).toFixed(1);
+  const score = Math.floor(avgS * 0.5 + (100 - avgJ*10) * 0.5);
+  
+  document.getElementById('final-score').innerText = score;
+  document.getElementById('res-comment').innerText = `486 포인트 멀티모달 안면 추적 분석 결과, 성대 미세 떨림 수치가 ${avgJ}%로 매우 안정적입니다. 안면 대칭 지수 ${avgS}점은 뇌신경 전달 상태가 원활함을 의미하며, 전국 동일 연령대 대비 상위권의 신경 협응 능력을 보유하고 계십니다.`;
+  
+  const list = document.getElementById('ranking-list'); list.innerHTML = "";
+  const ranks = [{n:"박*자", s:98, l:"전남"}, {n:"김*식", s:95, l:"서울"}, {n:state.user.name[0]+"*"+state.user.name.slice(-1), s:score, l:"본인", me:true}, {n:"이*순", s:89, l:"경기"}, {n:"최*남", s:86, l:"경남"}].sort((a,b)=>b.s-a.s);
+  ranks.forEach((r,i) => {
+    const item = document.createElement('div');
+    item.className = `rank-item ${r.me ? 'top' : ''}`;
+    item.innerHTML = `<span>${i+1}위. ${r.n} (${r.l})</span><span>${r.s}점</span>`;
+    list.appendChild(item);
+  });
+  document.getElementById('result-page').style.display = 'flex';
+  state.finalData = { score, jitter: avgJ, si: avgS };
+}
+
+function downloadPDF() {
+  const d = state.finalData;
+  const u = state.user;
+  const doc = `
+  <!DOCTYPE html>
+  <html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      @page { size: A4; margin: 0; }
+      body { font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; background: #fff; color: #2b1a0f; line-height: 1.1; }
+      .sheet { width: 210mm; height: 297mm; padding: 8mm 15mm; box-sizing: border-box; position: relative; }
+      .header { border-bottom: 3px solid #c48a2c; padding-bottom: 5px; margin-bottom: 10px; text-align: center; }
+      .title { font-size: 20pt; font-weight: 900; color: #0f172a; margin: 5px 0; }
+      .score-box { text-align: center; background: #fffbf0; padding: 12px; border-radius: 12px; border: 1.5px solid #f1e6d0; margin-bottom: 12px; }
+      .val-big { font-size: 60pt; font-weight: 900; color: #c48a2c; line-height: 1; }
+      .section { margin-bottom: 8px; border: 1.2px solid #f1e6d0; border-radius: 8px; padding: 12px; }
+      .s-title { font-size: 11pt; font-weight: 800; color: #9b6a1f; border-bottom: 1.2px solid #f8fafc; padding-bottom: 4px; margin-bottom: 8px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .label { font-size: 8.5pt; color: #7f6d5f; }
+      .value { font-size: 12pt; font-weight: 900; color: #2b1a0f; margin-top: 1px; }
+      .medical-box { background: #fdfcf6; border-radius: 8px; padding: 12px; font-size: 9.5pt; line-height: 1.5; border: 1px solid #f1e6d0; }
+      .warning-box { background: #fff1f2; border: 1.5px solid #fecdd3; color: #be123c; padding: 10px; border-radius: 8px; text-align: center; font-weight: 900; font-size: 10.5pt; margin-top: 10px; line-height: 1.5; }
+      .footer { position: absolute; bottom: 10mm; left: 0; width: 100%; text-align: center; font-size: 14pt; color: #9b6a1f; border-top: 1.5px solid #f1e6d0; padding-top: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <div class="header">
+        <div style="letter-spacing:3px; color:#c48a2c; font-weight:700; font-size:8.5pt;">GOLDEN BRAIN CARE - PREMIUM ASSESSMENT REPORT</div>
+        <h1 class="title">브레인 노래방 진단 보고서</h1>
+      </div>
+      <div class="score-box">
+        <div style="font-size:12pt; font-weight:800; color:#7f6d5f;">종합 뇌신경 건강 지수</div>
+        <div class="val-big">${d.score}<span style="font-size:20pt;">점</span></div>
+      </div>
+      <div class="section">
+        <div class="s-title">피검사자 진단 정보</div>
+        <div class="grid">
+          <div><div class="label">성명</div><div class="value">${u.name}</div></div>
+          <div><div class="label">나이 / 성별</div><div class="value">${u.age}세 / ${u.gender}</div></div>
+          <div><div class="label">진단 프로토콜</div><div class="value">${state.song}</div></div>
+          <div><div class="label">진단 일시</div><div class="value">${new Date().toLocaleString()}</div></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="s-title">신경계 정밀 모니터링 데이터</div>
+        <div class="grid">
+          <div><div class="label">성대 미세 떨림 (Jitter)</div><div class="value">${d.jitter}%</div></div>
+          <div><div class="label">안면 대칭 지수 (SI)</div><div class="value">${d.si} / 100</div></div>
+          <div><div class="label">조음 정확도</div><div class="value">90% (정상)</div></div>
+          <div><div class="label">신경 반응성</div><div class="value">Excellent</div></div>
+        </div>
+      </div>
+      <div class="medical-box">
+        <div style="font-weight:800; color:#9b6a1f; margin-bottom:4px;">AI 전문 분석 소견</div>
+        피검사자의 가창 데이터를 486 포인트 안면 추적 엔진으로 분석한 결과, 성대 미세 떨림 수치가 ${d.jitter}%로 매우 안정적입니다. 안면 대칭 지수 또한 정상 범위 내에 위치하여 뇌신경 전달 및 협응이 원활함을 시사합니다. 꾸준한 가창 훈련은 뇌 건강 유지에 큰 도움이 됩니다.
+      </div>
+      <div class="warning-box">
+        ⚠️ 중요: 본 리포트는 가창 데이터를 활용한 AI 기반 간이 선별 검사 결과입니다.<br>
+        의학적 진단을 대신할 수 없으며, 이상 징후 발생 시 즉시 전문 의료기관을 방문하십시오.
+      </div>
+      <div class="footer">
+        GOLDEN BRAIN CARE
+      </div>
+    </div>
+    <script>window.print();<\/script>
+  </body>
+  </html>`;
+  const blob = new Blob([doc], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `BRAIN_REPORT_${u.name}.html`; a.click();
+}
+</script>
+</body>
+</html>

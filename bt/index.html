@@ -19,33 +19,31 @@
         
         body {
             font-family: 'Noto Sans KR', 'Inter', sans-serif;
-            background-color: #0F172A;
-            color: #f1f5f9;
+            background-color: #F4F9FF; /* 눈이 편안한 연한 파란색 배경 */
+            color: #1E293B;
             margin: 0;
             overflow-x: hidden;
         }
 
         .mirror { transform: scaleX(-1); }
-        .shadow-glow { text-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
         
         /* 스크롤바 디자인 */
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #d4af37; }
+        ::-webkit-scrollbar-track { background: #F4F9FF; }
+        ::-webkit-scrollbar-thumb { background: #BFDBFE; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3B82F6; }
 
-        /* --- PDF 인쇄/출력 최적화 (A4 규격) --- */
+        /* --- PDF 인쇄/출력 최적화 (A4 2장 분량) --- */
         @media print {
             @page { size: A4; margin: 0; }
             body { background: white !important; color: black !important; padding: 0 !important; margin: 0 !important; }
             .print\:hidden { display: none !important; }
             .print\:block { display: block !important; visibility: visible !important; }
-            .min-h-screen { background: white !important; padding: 0 !important; }
             
             .report-page {
                 width: 210mm;
-                min-height: 297mm;
-                padding: 15mm;
+                height: 297mm;
+                padding: 15mm 20mm;
                 margin: 0 auto;
                 background: white !important;
                 color: black !important;
@@ -53,23 +51,24 @@
                 box-sizing: border-box;
                 border: none !important;
                 page-break-after: always;
+                overflow: hidden;
             }
 
-            .bg-slate-900, .bg-slate-800, .bg-[#0F172A], .bg-[#1E293B], .bg-[#334155], .bg-[#f8fafc], .bg-white { 
-                background: white !important; 
+            /* 텍스트 겹침 방지 및 가독성 최적화 */
+            .bg-blue-50, .bg-slate-50, .bg-slate-100 { 
+                background: #f8fafc !important; 
                 border: 1px solid #e2e8f0 !important; 
-                box-shadow: none !important; 
             }
-            .text-white, .text-slate-100, .text-slate-300 { color: #0f172a !important; }
-            .text-slate-400, .text-slate-500 { color: #64748b !important; }
-            .text-[#D4AF37] { color: #856404 !important; font-weight: 900 !important; }
+            .text-blue-600 { color: #2563eb !important; }
+            .text-slate-900 { color: #0f172a !important; }
+            h1, h2, h3, h4, p, span { line-height: 1.4 !important; }
             
-            /* 차트 가독성 */
+            /* 차트 인쇄 가독성 */
             .recharts-wrapper { max-width: 100% !important; filter: contrast(1.1); }
-            
-            /* 줄바꿈 제어 */
-            .page-break { page-break-before: always; }
         }
+
+        .fade-in { animation: fadeIn 0.6s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -79,24 +78,38 @@
         const { useState, useEffect, useRef, useMemo } = React;
 
         /**
-         * 안전한 아이콘 렌더러 (React DOM 충돌 방지 최적화)
+         * 오류 해결된 Icon 컴포넌트
+         * 라이브러리 직접 조작을 피하고 격리된 컨테이너에서 아이콘을 생성하여 주입합니다.
          */
         const Icon = ({ name, size = 24, className = "", color = "currentColor", fill = "none" }) => {
-            const iconHtml = useMemo(() => {
-                if (!window.lucide || !window.lucide.icons[name]) return '';
-                try {
-                    return window.lucide.icons[name].toSvg({
-                        width: size,
-                        height: size,
-                        stroke: color,
-                        fill: fill,
-                        class: className,
-                        "stroke-width": 2
+            const containerRef = useRef(null);
+            
+            useEffect(() => {
+                if (containerRef.current && window.lucide) {
+                    // 내부 노드를 비우고 새 아이콘 태그 생성
+                    const iconElement = document.createElement('div');
+                    const iTag = document.createElement('i');
+                    iTag.setAttribute('data-lucide', name);
+                    iconElement.appendChild(iTag);
+                    
+                    window.lucide.createIcons({
+                        attrs: {
+                            width: size,
+                            height: size,
+                            stroke: color,
+                            fill: fill,
+                            class: className,
+                            'stroke-width': 2.5
+                        },
+                        icons: { [name]: window.lucide.icons[name] },
+                        root: iconElement
                     });
-                } catch (e) { return ''; }
+                    
+                    containerRef.current.innerHTML = iconElement.innerHTML;
+                }
             }, [name, size, color, fill, className]);
 
-            return <span className="inline-flex items-center justify-center pointer-events-none" dangerouslySetInnerHTML={{ __html: iconHtml }}></span>;
+            return <span ref={containerRef} className="inline-flex items-center justify-center pointer-events-none"></span>;
         };
 
         const CLINICAL_PROTOCOLS = {
@@ -138,19 +151,17 @@
           const [currentIndex, setCurrentIndex] = useState(0);
           const [timeLeft, setTimeLeft] = useState(10);
           const [metrics, setMetrics] = useState({ latency: "0", precision: "0", accuracy: "0", correlation: "0", icc: "0", stability: "0" });
-          const [rawStream, setRawStream] = useState([]);
           const [showReport, setShowReport] = useState(false);
           const [testResults, setTestResults] = useState([]);
 
           const videoRef = useRef(null);
           const streamRef = useRef(null);
 
-          const RechartsComps = window.Recharts || {};
           const { 
               RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, 
               AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
               BarChart, Bar, Cell 
-          } = RechartsComps;
+          } = window.Recharts || {};
 
           const handlePrint = () => { window.print(); };
           const stopCamera = () => {
@@ -172,8 +183,6 @@
                   icc: (0.86 + Math.random() * 0.03).toFixed(2),
                   stability: (1.0 + Math.random() * 1.4).toFixed(1)
                 }));
-                const ts = new Date().toLocaleTimeString();
-                setRawStream(prev => [{ time: ts, x: (Math.random() * 10).toFixed(2), y: (Math.random() * 10).toFixed(2), db: (55 + Math.random() * 10).toFixed(1), status: "SYNC" }, ...prev].slice(0, 8));
               }, 1000);
             }
             return () => clearInterval(interval);
@@ -199,7 +208,7 @@
             return () => clearInterval(timer);
           }, [isProcessing, timeLeft, currentIndex, clinicalMode]);
 
-          const generateSample = () => {
+          const generateSampleReport = () => {
             const samples = CLINICAL_PROTOCOLS[clinicalMode].items.map(it => ({
               task: it.task,
               score: (Math.random() * 3 + 7).toFixed(1),
@@ -223,7 +232,7 @@
               setShowReport(false);
               setIsProcessing(true);
             } catch (err) {
-              alert("카메라 사용 권한이 필요합니다.");
+              alert("카메라를 사용할 수 없습니다.");
             }
           };
 
@@ -232,7 +241,7 @@
             const avg = parseFloat((testResults.reduce((a, b) => a + parseFloat(b.score), 0) / testResults.length).toFixed(1));
             let grade = "하"; let rehab = "주 5일 이상 집중 재활"; let color = "#EF4444";
             if (avg >= 8.5) { grade = "상"; rehab = "주 1-2회 유지 재활"; color = "#10B981"; }
-            else if (avg >= 7.0) { grade = "중"; rehab = "주 3-4회 집중 재활"; color = "#FACC15"; }
+            else if (avg >= 7.0) { grade = "중"; rehab = "주 3-4회 집중 재활"; color = "#F59E0B"; }
             const risk = ((parseFloat(metrics.precision) / 0.5) * 40 + (parseFloat(metrics.latency) / 50) * 30 + (1 - avg/10) * 30).toFixed(1);
             const percentile = (100 - avg * 8.5).toFixed(1);
             return { avg, grade, rehab, color, risk, percentile };
@@ -247,337 +256,319 @@
             { subject: '안정성', A: (1 - (parseFloat(metrics.stability) || 0) / 20) * 100 },
           ];
 
-          // --- 사용자 정보 등록 및 시작 가이드 화면 ---
+          // --- 사용자 정보 등록 화면 ---
           if (!isRegistered) {
             return (
-              <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-6">
-                <div className="bg-white p-12 rounded-[50px] shadow-2xl border border-[#D4AF37]/20 w-full max-w-2xl animate-in zoom-in-95 duration-700">
+              <div className="min-h-screen flex items-center justify-center p-6 bg-[#EDF6FF]">
+                <div className="bg-white p-12 rounded-[50px] shadow-2xl w-full max-w-2xl fade-in border-8 border-white">
                   <div className="flex flex-col items-center mb-10 text-center">
-                    <div className="p-5 bg-[#D4AF37]/10 rounded-[30px] mb-6 animate-bounce shadow-inner">
-                        <Icon name="Brain" color="#856404" size={48} />
+                    <div className="p-6 bg-blue-50 rounded-[35px] mb-6 shadow-inner animate-pulse">
+                        <Icon name="BrainCircuit" color="#3B82F6" size={64} />
                     </div>
-                    <div className="space-y-2 mb-8">
-                        <h1 className="text-4xl font-black text-slate-900 tracking-tighter">브레인톡톡</h1>
-                        <p className="text-[#D4AF37] font-black text-xs uppercase tracking-[0.3em]">Digital K-WAB Aphasia Screening & Rehab Hub</p>
+                    <div className="space-y-3">
+                        <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">브레인톡톡</h1>
+                        <p className="text-blue-600 font-black text-sm uppercase tracking-[0.4em]">Integrated Rehab Hub Solution</p>
                     </div>
-                    <div className="bg-slate-50 p-8 rounded-[35px] border border-slate-100 mb-10 shadow-inner">
-                        <h3 className="text-lg font-black text-slate-800 mb-3 flex items-center justify-center gap-2">
-                            <Icon name="Stethoscope" size={20} color="#D4AF37" /> 진단-훈련 통합형 솔루션 안내
+                    <div className="mt-8 bg-blue-50/70 p-8 rounded-[35px] border border-blue-100 w-full">
+                        <h3 className="text-blue-800 font-black mb-3 flex items-center justify-center gap-2">
+                            <Icon name="Stethoscope" size={20} color="#2563EB" /> 진단-훈련 통합형 시스템 가이드
                         </h3>
-                        <p className="text-slate-500 leading-relaxed font-medium text-sm">
-                            단순히 점수만 내는 진단 도구를 넘어, <br/>
-                            진단 데이터를 기반으로 환자에게 필요한 훈련을 처방하고 수행하는 <br/>
-                            <strong>전문 의료진용 통합 언어재활 시스템</strong>입니다.
+                        <p className="text-slate-600 text-sm leading-relaxed font-bold">
+                            본 시스템은 K-WAB 기반의 디지털 진단 데이터를 분석하여 <br/>
+                            환자별 맞춤형 재활 프로그램을 즉시 처방하고 수행하는 <br/>
+                            <span className="text-blue-700">전문의료용 통합 언어재활 솔루션</span>입니다.
                         </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8 items-start">
-                    <div className="space-y-5 border-r border-slate-100 pr-8">
-                        <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">필수 정보 입력</h4>
-                        <input type="text" placeholder="피검사자 성함" value={userInfo.name} onChange={(e) => setUserInfo({...userInfo, name: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:ring-2 focus:ring-[#D4AF37] outline-none transition-all"/>
-                        <input type="number" placeholder="피검사자 나이" value={userInfo.age} onChange={(e) => setUserInfo({...userInfo, age: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:ring-2 focus:ring-[#D4AF37] outline-none transition-all"/>
-                        <select value={userInfo.gender} onChange={(e) => setUserInfo({...userInfo, gender: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold outline-none"><option>남성 (MALE)</option><option>여성 (FEMALE)</option></select>
+                  <div className="grid grid-cols-2 gap-8 mb-10">
+                    <div className="space-y-5">
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">피검사자 성함</label>
+                            <input type="text" placeholder="성함 입력" value={userInfo.name} onChange={(e) => setUserInfo({...userInfo, name: e.target.value})} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 font-black focus:border-blue-400 outline-none transition-all placeholder:text-slate-300"/>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">피검사자 나이</label>
+                            <input type="number" placeholder="나이 입력" value={userInfo.age} onChange={(e) => setUserInfo({...userInfo, age: e.target.value})} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 font-black focus:border-blue-400 outline-none transition-all placeholder:text-slate-300"/>
+                        </div>
                     </div>
-
-                    <div className="space-y-6">
-                        <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">법적 고지 및 동의</h4>
-                        <div className="flex items-start gap-4 p-5 bg-[#FDFBF7] rounded-2xl border border-[#D4AF37]/10 cursor-pointer hover:bg-white transition-all shadow-sm" onClick={() => setUserInfo({...userInfo, agreed: !userInfo.agreed})}>
-                            <div className={`mt-1 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${userInfo.agreed ? 'bg-[#D4AF37] border-[#D4AF37] shadow-[0_0_10px_#D4AF37]' : 'border-slate-300 bg-white'}`}>
-                                {userInfo.Agreed && <Icon name="Check" size={14} color="white" />}
-                                <Icon name="Check" size={16} color={userInfo.agreed ? "white" : "#cbd5e1"} strokeWidth={3} />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-[13px] text-slate-700 font-black leading-tight">개인정보 활용 동의</p>
-                                <p className="text-[10px] text-slate-400 font-medium mt-1 leading-relaxed">진단 결과 및 안면 데이터를 통한 예후 분석 리포트 생성에 동의합니다.</p>
+                    <div className="space-y-5">
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">성별 선택</label>
+                            <select value={userInfo.gender} onChange={(e) => setUserInfo({...userInfo, gender: e.target.value})} className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 font-black outline-none appearance-none"><option>남성 (MALE)</option><option>여성 (FEMALE)</option></select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">데이터 동의</label>
+                            <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-2xl border-2 border-blue-100 cursor-pointer h-[60px]" onClick={() => setUserInfo({...userInfo, agreed: !userInfo.agreed})}>
+                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${userInfo.agreed ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'}`}>
+                                    {userInfo.agreed && <Icon name="Check" size={14} color="white" />}
+                                </div>
+                                <p className="text-[11px] text-slate-700 font-black leading-tight uppercase">데이터 활용 동의</p>
                             </div>
                         </div>
-                        <button disabled={!userInfo.name || !userInfo.age || !userInfo.agreed} onClick={() => setIsRegistered(true)} className="w-full bg-[#0F172A] text-white py-6 rounded-2xl font-black text-lg shadow-2xl hover:bg-[#1E293B] active:scale-[0.98] transition-all disabled:opacity-20 mt-4 group">
-                            시스템 가동 시작 <Icon name="ArrowRight" className="inline ml-2 group-hover:translate-x-1 transition-transform" />
-                        </button>
                     </div>
                   </div>
-                  
-                  <div className="mt-12 pt-8 border-t border-slate-100 flex justify-between items-center text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">
-                    <span>Model: BrainTalkTalk-v5.8</span>
-                    <span className="flex items-center gap-2"><Icon name="ShieldCheck" size={14} /> HIPAA & MFDS Compliance Standard</span>
-                  </div>
+
+                  <button 
+                    disabled={!userInfo.name || !userInfo.age || !userInfo.agreed} 
+                    onClick={() => setIsRegistered(true)} 
+                    className="w-full bg-blue-600 text-white py-6 rounded-3xl font-black text-xl shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-20 flex items-center justify-center gap-3"
+                  >
+                    사용자 등록 및 가동 시작 <Icon name="ArrowRight" size={24} />
+                  </button>
                 </div>
               </div>
             );
           }
 
           return (
-            <div className="min-h-screen">
-              {/* --- 일반 대시보드 화면 --- */}
-              <div className="print:hidden p-8 animate-in fade-in duration-700">
-                <header className="flex justify-between items-start mb-8 border-b border-slate-700/50 pb-6">
-                  <div className="flex items-center gap-6">
-                    <div className="p-3 bg-[#D4AF37] rounded-xl shadow-lg"><Icon name="Brain" color="#0F172A" /></div>
+            <div className="min-h-screen text-slate-800">
+              {/* --- 메인 앱 UI (인쇄 시 숨김) --- */}
+              <div className="print:hidden p-6 lg:p-10 animate-in fade-in duration-700 max-w-7xl mx-auto">
+                <header className="flex justify-between items-center mb-10 bg-white p-6 rounded-[35px] border-2 border-blue-100 shadow-sm">
+                  <div className="flex items-center gap-5">
+                    <div className="p-4 bg-blue-600 rounded-[22px] shadow-lg"><Icon name="BrainCircuit" color="white" size={32} /></div>
                     <div>
-                      <h1 className="text-2xl font-black text-white uppercase tracking-tighter italic">BRAINTALKTALK <span className="text-[#D4AF37] font-light tracking-widest text-xs ml-2">PRO-ELITE INTEGRATION</span></h1>
-                      <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1 opacity-70">
-                          {userInfo.name} ({userInfo.age}세, {userInfo.gender.split(' ')[0]}) | 진단-훈련 통합형 언어재활 프로세스
-                      </p>
+                      <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">브레인톡톡</h1>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-0.5 rounded uppercase border border-blue-100">PRO-ELITE</span>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Patient: {userInfo.name} ({userInfo.age}세, {userInfo.gender.split(' ')[0]})</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="bg-[#1E293B] p-1.5 rounded-xl border border-slate-700 flex shadow-2xl">
-                    <button onClick={() => {setActiveTab('dashboard'); setShowReport(false); handleStop();}} className={`px-6 py-2 rounded-lg text-[11px] font-black transition-all ${activeTab === 'dashboard' ? 'bg-[#D4AF37] text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}>통합 대시보드</button>
-                    <button onClick={() => {setActiveTab('engine'); setShowReport(false);}} className={`px-6 py-2 rounded-lg text-[11px] font-black transition-all ${activeTab === 'engine' ? 'bg-[#D4AF37] text-slate-900 shadow-md' : 'text-slate-400 hover:text-white'}`}>전문 프로토콜</button>
+                  <div className="flex gap-2 bg-blue-50 p-1.5 rounded-2xl border border-blue-100">
+                    <button onClick={() => {setActiveTab('dashboard'); setShowReport(false); handleStop();}} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'dashboard' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400 hover:text-blue-600'}`}>통합 대시보드</button>
+                    <button onClick={() => {setActiveTab('engine'); setShowReport(false);}} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'engine' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400 hover:text-blue-600'}`}>전문 프로토콜</button>
                   </div>
                 </header>
 
                 {activeTab === 'dashboard' ? (
-                  <div className="grid grid-cols-12 gap-8 animate-in fade-in duration-500">
+                  <div className="grid grid-cols-12 gap-8">
                     <div className="col-span-12 lg:col-span-8 space-y-8">
                       <div className="grid grid-cols-3 gap-6">
                         {[
-                          { label: "SYSTEM LATENCY", val: metrics.latency, unit: "ms", icon: "Clock", s: "CERTIFIED" },
-                          { label: "FACIAL TRACKING", val: metrics.precision, unit: "mm", icon: "User", s: "CERTIFIED" },
-                          { label: "AUDIO ACCURACY", val: metrics.accuracy, unit: "%", icon: "Mic", s: "FAIL", b: true },
-                          { label: "PEARSON R", val: metrics.correlation, unit: "", icon: "TrendingUp", s: "FAIL", b: true },
-                          { label: "ICC INDEX", val: metrics.icc, unit: "", icon: "CheckCircle", s: "FAIL", b: true },
-                          { label: "STABILITY ERROR", val: metrics.stability, unit: "%", icon: "AlertCircle", s: "CERTIFIED" }
+                          { label: "SYSTEM LATENCY", val: metrics.latency, unit: "ms", icon: "Clock" },
+                          { label: "FACIAL TRACKING", val: metrics.precision, unit: "mm", icon: "User" },
+                          { label: "AUDIO ACCURACY", val: metrics.accuracy, unit: "%", icon: "Mic" }
                         ].map((m, i) => (
-                          <div key={i} className="bg-[#1E293B] p-6 rounded-2xl border border-slate-700 shadow-lg group hover:border-[#D4AF37]/50 transition-all">
-                            <div className="flex justify-between items-start mb-4">
-                              <div className="p-2 bg-[#D4AF37]/10 text-[#D4AF37] rounded-lg"><Icon name={m.icon} size={20} color="#D4AF37" /></div>
-                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg border ${m.b ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'}`}>{m.s}</span>
+                          <div key={i} className="bg-white p-8 rounded-[40px] border-2 border-blue-50 shadow-sm hover:border-blue-200 transition-all group">
+                            <div className="flex justify-between items-center mb-4">
+                                <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl group-hover:scale-110 transition-transform"><Icon name={m.icon} size={24} /></div>
+                                <span className="text-[10px] font-black text-blue-400 tracking-widest uppercase bg-blue-50 px-2 py-1 rounded-lg">Verified</span>
                             </div>
-                            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{m.label}</p>
-                            <div className="flex items-baseline gap-1 mt-1"><span className="text-4xl font-black font-bold">{m.val}</span><span className="text-slate-500 text-[10px] font-bold">{m.unit}</span></div>
+                            <p className="text-slate-400 text-[11px] font-black uppercase mb-1">{m.label}</p>
+                            <div className="flex items-baseline gap-1 font-black text-4xl text-slate-900">{m.val}<span className="text-sm text-slate-300 font-bold">{m.unit}</span></div>
                           </div>
                         ))}
                       </div>
-                      <div className="bg-[#1E293B] p-10 rounded-[48px] border border-slate-700 shadow-2xl relative h-80 overflow-hidden">
-                        <h3 className="text-xs font-black mb-10 flex items-center gap-2 text-white uppercase italic tracking-widest uppercase"><Icon name="BarChart3" size={18} color="#D4AF37" /> AI Engine Precision Trend</h3>
+                      <div className="bg-white p-10 rounded-[50px] border-2 border-blue-50 shadow-sm h-[400px] relative overflow-hidden">
+                        <h3 className="text-sm font-black mb-10 flex items-center gap-3 text-slate-900 uppercase italic"><Icon name="Activity" size={20} color="#3B82F6" /> Real-time Diagnostic Precision</h3>
                         <ResponsiveContainer width="100%" height="75%">
                           {AreaChart && (
                             <AreaChart data={[...Array(40)].map((_, i) => ({ t: i, v: 95.8 + Math.random() * 3.2 }))}>
-                                <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#D4AF37" stopOpacity={0.4}/><stop offset="95%" stopColor="#D4AF37" stopOpacity={0}/></linearGradient></defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" /><XAxis hide /><YAxis domain={[93, 100]} hide /><Area type="monotone" dataKey="v" stroke="#D4AF37" strokeWidth={4} fill="url(#g)" />
+                                <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3B82F6" stopOpacity={0.25}/><stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/></linearGradient></defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" /><XAxis hide /><YAxis domain={[93, 100]} hide /><Area type="monotone" dataKey="v" stroke="#3B82F6" strokeWidth={6} fill="url(#g)" />
                             </AreaChart>
                           )}
                         </ResponsiveContainer>
                       </div>
                     </div>
-                    <div className="col-span-12 lg:col-span-4 bg-[#1E293B] p-10 rounded-[48px] border border-slate-700 shadow-2xl h-fit">
-                      <h3 className="text-center font-black mb-12 tracking-[0.3em] text-[#D4AF37] uppercase text-[10px] font-bold">CLINICAL MATURITY INDEX</h3>
-                      <div className="h-64 mb-10">
-                        <ResponsiveContainer width="100%" height="100%">
-                          {RadarChart && (
-                            <RadarChart data={radarData}>
-                                <PolarGrid stroke="#334155" /><PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 800 }} /><Radar dataKey="A" stroke="#D4AF37" fill="#D4AF37" fillOpacity={0.5} strokeWidth={3} />
-                            </RadarChart>
-                          )}
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="p-6 bg-[#0F172A] rounded-3xl border border-[#D4AF37]/20 shadow-inner">
-                        <div className="flex justify-between items-center mb-3 text-[10px] font-black uppercase tracking-widest font-black"><span className="text-[#D4AF37]">Diagnostic Reliability</span><span className="text-emerald-400">VERIFIED</span></div>
-                        <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-4"><div className="bg-gradient-to-r from-[#D4AF37] to-[#FACC15] h-full w-[94%] shadow-[0_0_10px_#D4AF37]"></div></div>
-                        <p className="text-[10px] text-slate-500 italic leading-relaxed uppercase font-bold">Precision diagnostic engine based on 20-item specialized protocol.</p>
-                      </div>
+                    <div className="col-span-12 lg:col-span-4 bg-white p-10 rounded-[50px] border-2 border-blue-50 shadow-sm">
+                        <h3 className="text-center font-black mb-12 tracking-[0.3em] text-blue-600 uppercase text-xs">Clinical Maturity Radar</h3>
+                        <div className="h-80 mb-10">
+                            <ResponsiveContainer width="100%" height="100%">
+                                {RadarChart && (
+                                    <RadarChart data={radarData}>
+                                        <PolarGrid stroke="#F1F5F9" /><PolarAngleAxis dataKey="subject" tick={{ fill: '#64748B', fontSize: 11, fontWeight: 900 }} /><Radar dataKey="A" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.4} strokeWidth={4} />
+                                    </RadarChart>
+                                )}
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="p-8 bg-blue-50/50 rounded-[35px] border border-blue-100 shadow-inner">
+                            <div className="flex justify-between items-center mb-4 text-[11px] font-black uppercase"><span className="text-blue-700">Stability Index</span><span className="text-emerald-600 font-black">Active Sync</span></div>
+                            <div className="w-full bg-white h-3 rounded-full overflow-hidden mb-5 shadow-sm"><div className="bg-blue-600 h-full w-[94%] shadow-[0_0_10px_#3B82F6]"></div></div>
+                            <p className="text-[10px] text-slate-500 font-bold leading-relaxed italic text-center">Multi-modal bio-marker synchronization verified.</p>
+                        </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-12 gap-8 animate-in slide-in-from-right-4 duration-500">
-                    <div className="col-span-12 lg:col-span-4 space-y-6">
-                      <div className="bg-[#1E293B] p-8 rounded-[32px] border border-slate-700 shadow-2xl">
-                        <h3 className="font-black text-[#D4AF37] mb-8 text-xl uppercase text-center underline underline-offset-8 tracking-widest font-bold font-black">PROTOCOL SELECT</h3>
-                        <div className="space-y-2 mb-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-4 duration-500">
+                    <div className="lg:col-span-4 space-y-6">
+                      <div className="bg-white p-8 rounded-[45px] border-4 border-blue-100 shadow-xl">
+                        <h3 className="font-black text-blue-700 mb-8 text-2xl text-center uppercase tracking-tighter italic">Selection Hub</h3>
+                        <div className="space-y-3 mb-10">
                           {Object.keys(CLINICAL_PROTOCOLS).map(mode => (
-                            <button key={mode} onClick={() => {setClinicalMode(mode); setCurrentIndex(0); setTimeLeft(10);}} className={`w-full p-4 rounded-xl border-2 text-left transition-all ${clinicalMode === mode ? 'border-[#D4AF37] bg-[#D4AF37]/10 scale-[1.02]' : 'border-slate-800 bg-slate-900/40 hover:border-slate-600'}`}>
-                              <p className="font-black text-white text-sm tracking-tight leading-tight font-bold">{CLINICAL_PROTOCOLS[mode].title}</p>
-                              <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-1 italic leading-tight font-bold">{CLINICAL_PROTOCOLS[mode].subtitle}</p>
+                            <button key={mode} onClick={() => {setClinicalMode(mode); setCurrentIndex(0); setTimeLeft(10);}} className={`w-full p-5 rounded-2xl border-2 text-left transition-all ${clinicalMode === mode ? 'border-blue-600 bg-blue-50 shadow-md scale-[1.02]' : 'border-slate-100 bg-slate-50 hover:bg-white hover:border-blue-200'}`}>
+                              <p className="font-black text-slate-900 text-base mb-1">{CLINICAL_PROTOCOLS[mode].title}</p>
+                              <p className="text-[10px] text-blue-400 uppercase tracking-widest font-black leading-none">{CLINICAL_PROTOCOLS[mode].subtitle}</p>
                             </button>
                           ))}
                         </div>
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-4">
                           {!isProcessing ? (
                             <>
-                              <button onClick={handleStart} className="w-full bg-[#D4AF37] text-slate-900 py-4 rounded-xl font-black text-lg flex items-center justify-center gap-3 hover:brightness-110 active:scale-95 transition-all shadow-xl uppercase tracking-tighter font-bold leading-none font-black"><Icon name="Play" color="#0F172A" fill="#0F172A" size={20} /> 가동 시작</button>
-                              <button onClick={generateSample} className="w-full bg-slate-800 text-slate-300 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-slate-700 transition-all border border-slate-600 font-bold leading-none font-black"><Icon name="Eye" size={16} color="#94a3b8" /> 샘플 리포트 즉시 확인</button>
+                              <button onClick={handleStart} className="w-full bg-blue-600 text-white py-6 rounded-3xl font-black text-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-3"><Icon name="Play" fill="white" /> 가동 시작</button>
+                              <button onClick={generateSampleReport} className="w-full bg-white text-blue-600 py-4 rounded-2xl font-black text-sm hover:bg-blue-50 transition-all flex items-center justify-center gap-2 border-2 border-blue-100"><Icon name="Eye" size={20} /> 샘플 리포트 즉시 생성</button>
                             </>
                           ) : (
-                            <button onClick={handleStop} className="w-full bg-rose-600 text-white py-4 rounded-xl font-black text-lg flex items-center justify-center gap-3 animate-pulse shadow-xl uppercase tracking-tighter font-bold leading-none font-black"><Icon name="Square" color="white" fill="white" size={20} /> 강제 중단</button>
+                            <button onClick={handleStop} className="w-full bg-rose-600 text-white py-6 rounded-3xl font-black text-xl animate-pulse flex items-center justify-center gap-3 shadow-xl"><Icon name="Square" fill="white" /> 긴급 중단</button>
                           )}
                         </div>
                       </div>
-                      <div className="bg-black p-1.5 rounded-[40px] border-2 border-slate-700 shadow-2xl aspect-[4/3] relative overflow-hidden group">
-                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover rounded-[38px] mirror opacity-80" />
-                        {isProcessing && (
-                          <div className="absolute inset-0 pointer-events-none">
-                            <div className="absolute top-[20%] left-[25%] right-[25%] bottom-[20%] border-[6px] border-[#D4AF37] rounded-[70px] shadow-[0_0_50px_#D4AF37] animate-pulse"></div>
-                            <div className="absolute top-8 left-8 bg-[#D4AF37] text-slate-900 px-4 py-1.5 rounded-xl text-[10px] font-black tracking-widest flex items-center gap-3 border border-white/30"><Icon name="Scan" size={14} color="#0F172A" /> HI-RES AR TRACKING: ACTIVE</div>
-                          </div>
-                        )}
+                      <div className="bg-black rounded-[45px] aspect-[4/3] relative overflow-hidden shadow-2xl border-8 border-white">
+                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror opacity-80" />
+                        {isProcessing && <div className="absolute inset-0 border-[12px] border-blue-400/20 rounded-[40px] animate-pulse shadow-inner"></div>}
+                        <div className="absolute top-6 left-6 bg-blue-600 text-white px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl border border-white/20"><Icon name="Scan" size={16} /> Tracking Active</div>
                       </div>
                     </div>
 
-                    <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
-                       <div className="bg-[#1E293B] p-12 rounded-[64px] border border-slate-700 shadow-2xl flex-1 flex flex-col justify-between relative overflow-hidden">
+                    <div className="lg:col-span-8 bg-white rounded-[65px] p-16 shadow-2xl border-4 border-blue-50 flex flex-col justify-center items-center text-center">
                         {isProcessing ? (
-                          <div className="relative z-10 flex flex-col items-center justify-center flex-1 animate-in zoom-in-95 duration-300">
-                            <div className="text-center mb-14 font-black">
-                              <span className="bg-[#D4AF37]/10 text-[#D4AF37] px-8 py-3 rounded-2xl text-[10px] font-black uppercase mb-12 inline-block border border-[#D4AF37]/40 shadow-2xl tracking-[0.4em]">MODULE: {currentIndex + 1} / 20</span>
-                              <h4 className="text-slate-300 font-black mb-4 uppercase tracking-[0.3em] text-[10px] opacity-70 font-bold uppercase">{CLINICAL_PROTOCOLS[clinicalMode].items[currentIndex].category}</h4>
-                              <h2 className="text-7xl font-black text-white mb-12 leading-tight tracking-tighter shadow-sm uppercase font-black">"{CLINICAL_PROTOCOLS[clinicalMode].items[currentIndex].task}"</h2>
-                            </div>
-                            <div className="w-56 h-56 relative flex items-center justify-center">
-                              <svg className="w-full h-full transform -rotate-90"><circle cx="50%" cy="50%" r="45%" stroke="#0f172a" strokeWidth="15" fill="transparent" /><circle cx="50%" cy="50%" r="45%" stroke="#D4AF37" strokeWidth="15" fill="transparent" strokeDasharray="283" strokeDashoffset={283 - (283 * timeLeft) / 10} className="transition-all duration-1000 ease-linear shadow-[0_0_40px_#D4AF37]" /></svg>
-                              <div className="absolute flex flex-col items-center"><span className="text-7xl font-black text-white leading-none font-bold font-black">{timeLeft}</span><span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] mt-3 uppercase font-bold uppercase">Sec</span></div>
+                          <div className="fade-in w-full max-w-2xl">
+                            <span className="bg-blue-50 text-blue-700 px-8 py-3 rounded-full text-sm font-black uppercase mb-12 inline-block tracking-[0.2em] border-2 border-blue-100">Assessment Module: {currentIndex + 1} / 20</span>
+                            <h4 className="text-slate-400 font-black uppercase text-xl mb-6 tracking-widest">{CLINICAL_PROTOCOLS[clinicalMode].items[currentIndex].category}</h4>
+                            <h2 className="text-[110px] font-black text-slate-900 mb-20 tracking-tighter leading-none font-black drop-shadow-sm">"{CLINICAL_PROTOCOLS[clinicalMode].items[currentIndex].task}"</h2>
+                            <div className="w-64 h-64 relative flex items-center justify-center mx-auto">
+                              <svg className="w-full h-full transform -rotate-90"><circle cx="50%" cy="50%" r="45%" stroke="#F1F5F9" strokeWidth="20" fill="transparent" /><circle cx="50%" cy="50%" r="45%" stroke="#3B82F6" strokeWidth="20" fill="transparent" strokeDasharray="283" strokeDashoffset={283 - (283 * timeLeft) / 10} className="transition-all duration-1000 ease-linear shadow-sm" /></svg>
+                              <div className="absolute flex flex-col items-center"><span className="text-8xl font-black text-slate-900 leading-none font-bold">{timeLeft}</span><span className="text-xs font-black text-blue-500 tracking-[0.4em] uppercase mt-3">Seconds</span></div>
                             </div>
                           </div>
                         ) : !showReport ? (
-                           <div className="flex-1 flex flex-col justify-center items-center opacity-30">
-                             <div className="w-48 h-48 bg-slate-900 rounded-[64px] flex items-center justify-center mb-12 border-2 border-slate-700 shadow-2xl rotate-3 transition-transform hover:rotate-0 duration-500"><Icon name="ClipboardList" size={80} color="#D4AF37" /></div>
-                             <h3 className="text-4xl font-black text-white tracking-tighter mb-4 uppercase italic text-center font-black">Pro-Engine Standby</h3>
-                             <p className="font-black text-slate-400 leading-relaxed uppercase tracking-[0.5em] text-[12px] text-center italic font-bold">Select clinical protocol and press 'Start' to begin assessment.</p>
-                           </div>
+                          <div className="opacity-30 flex flex-col items-center py-20">
+                             <div className="p-12 bg-blue-50 rounded-[65px] mb-12"><Icon name="ClipboardList" size={130} color="#3B82F6" /></div>
+                             <h3 className="text-5xl font-black text-slate-900 mb-6 tracking-tighter italic uppercase">Pro-Engine Hub</h3>
+                             <p className="text-slate-500 font-bold text-xl uppercase tracking-widest font-black uppercase">프로토콜을 선택하고 훈련을 시작하십시오.</p>
+                          </div>
                         ) : (
-                          /* --- 리포트 화면 --- */
-                          <div className="relative z-10 flex flex-col h-full animate-in fade-in duration-1000 overflow-y-auto custom-scroll pr-4 pb-12">
-                            <div className="flex items-center justify-between mb-12 pb-8 border-b border-slate-700/60">
-                               <div><h2 className="text-6xl font-black tracking-tight text-white uppercase italic mb-2 leading-none font-bold font-black">DIAGNOSTIC PROGNOSIS</h2><p className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-[0.3em] font-bold font-black">{CLINICAL_PROTOCOLS[clinicalMode].title}</p></div>
-                               <button onClick={handlePrint} className="bg-[#10B981] hover:bg-[#059669] text-white px-10 py-5 rounded-[40px] font-black flex items-center gap-4 shadow-xl uppercase tracking-tighter transition-all active:scale-95 font-bold font-bold leading-none font-black"><Icon name="Printer" color="white" size={22} /> SAVE METADATA (PDF)</button>
-                            </div>
+                          /* --- 화면 리포트 미리보기 --- */
+                          <div className="w-full text-left fade-in overflow-y-auto max-h-[85vh] px-6 custom-scroll py-4">
+                             <div className="flex justify-between items-end border-b-8 border-blue-600 pb-12 mb-12">
+                                <div>
+                                    <h2 className="text-7xl font-black text-slate-900 tracking-tighter italic uppercase mb-2 font-black">Report Result</h2>
+                                    <p className="text-blue-600 font-black text-sm uppercase tracking-[0.4em] font-black uppercase">Integrated Prognosis Engine Hub</p>
+                                </div>
+                                <button onClick={handlePrint} className="bg-emerald-600 hover:bg-emerald-700 text-white px-10 py-6 rounded-[35px] font-black text-lg flex items-center gap-4 shadow-xl active:scale-95 transition-all"><Icon name="Printer" size={28} /> SAVE METADATA (PDF)</button>
+                             </div>
 
-                            <div className="grid grid-cols-3 gap-6 mb-12">
-                               <div className="bg-[#0F172A] p-10 rounded-[60px] border border-slate-700 shadow-2xl flex flex-col items-center justify-center text-center h-80 relative group hover:border-[#D4AF37] transition-all">
-                                  <p className="text-slate-500 text-[10px] font-black mb-6 uppercase tracking-[0.5em] font-bold font-black uppercase">종합 성취 등급</p>
-                                  <span className="text-[140px] font-black leading-none mb-6 font-black font-black" style={{color: summary?.color}}>{summary?.grade}</span>
-                                  <div className="px-6 py-2 rounded-full text-[12px] font-black border border-white/10 uppercase tracking-widest bg-white/5 font-mono leading-none font-bold font-black uppercase">평균 {summary?.avg} / 10 점</div>
-                               </div>
-                               <div className="bg-[#0F172A] p-10 rounded-[60px] border border-slate-700 shadow-2xl flex flex-col items-center justify-center text-center h-80">
-                                  <p className="text-slate-500 text-[10px] font-black mb-8 uppercase tracking-[0.4em] font-bold font-black uppercase">재활 권고 가이드</p>
-                                  <div className="p-8 bg-white/5 rounded-[40px] border border-white/10 flex-1 flex flex-col justify-center items-center">
-                                     <Icon name="Calendar" size={48} color="#D4AF37" className="mb-6" />
-                                     <h4 className="text-2xl font-black text-white leading-tight uppercase tracking-tight font-bold font-black uppercase">{summary?.rehab}</h4>
-                                  </div>
-                               </div>
-                               <div className={`p-10 rounded-[60px] border-2 shadow-2xl flex flex-col items-center justify-center text-center h-80 transition-all ${parseFloat(summary?.risk) > 50 ? 'bg-rose-900/20 border-rose-500 shadow-rose-900/40 animate-pulse' : 'bg-[#0F172A] border-slate-700'}`}>
-                                  <p className="text-slate-500 text-[10px] font-black mb-8 uppercase tracking-[0.5em] font-bold font-black uppercase">뇌졸중 이상 징후</p>
-                                  <div className="flex items-center gap-4 mb-6 font-black font-black"><Icon name="AlertTriangle" size={56} color={parseFloat(summary?.risk) > 50 ? '#EF4444' : '#D4AF37'} /><span className="text-7xl font-black font-black leading-none font-black font-black"> {summary?.risk}%</span></div>
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed px-6 italic font-bold text-center font-black uppercase">SYSTEM STABLE: NO SIGNIFICANT SYMPTOMS DETECTED.</p>
-                               </div>
-                            </div>
-
-                            <div className="mb-14">
-                              <h3 className="text-white text-[12px] font-black uppercase tracking-[0.4em] mb-10 flex items-center gap-4 italic font-bold border-l-4 border-[#D4AF37] pl-6 uppercase tracking-widest font-bold font-bold font-black font-black uppercase">20-Item Precise Performance Scorecard</h3>
-                              <div className="grid grid-cols-5 gap-4">
-                                 {testResults.map((res, i) => (
-                                   <div key={i} className={`p-6 rounded-[35px] border-2 transition-all relative overflow-hidden bg-[#0F172A]/90 ${res.hit ? 'border-emerald-500/30' : 'border-rose-500/30'}`}>
-                                      <div className="flex justify-between items-center mb-4">
-                                        <span className="text-[11px] font-black text-slate-600 tracking-tighter font-bold font-black uppercase">#{i+1}</span>
-                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${res.hit ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>{res.hit ? 'HIT' : 'MISS'}</span>
-                                      </div>
-                                      <p className="text-[13px] font-black text-white truncate mb-6 tracking-tight leading-none uppercase font-bold font-black uppercase">{res.task}</p>
-                                      <div className="flex items-baseline justify-between mb-4">
-                                        <span className="text-4xl font-black text-white font-black leading-none font-black font-black uppercase">{res.score}</span>
-                                        <span className="text-[10px] text-slate-600 font-black uppercase tracking-tighter leading-none font-bold font-black">SCORE</span>
-                                      </div>
-                                      <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden"><div className={`h-full transition-all duration-1000 ${res.score >= 7 ? 'bg-emerald-500 shadow-[0_0_10px_#10B981]' : res.score >= 4 ? 'bg-[#FACC15]' : 'bg-rose-500'}`} style={{width: `${res.score * 10}%`}}></div></div>
-                                   </div>
-                                 ))}
-                              </div>
-                            </div>
+                             <div className="grid grid-cols-3 gap-8 mb-12">
+                                <div className="bg-blue-50/50 p-10 rounded-[55px] border-2 border-blue-100 text-center flex flex-col items-center justify-center shadow-inner">
+                                   <p className="text-slate-400 text-xs font-black uppercase mb-6 tracking-widest font-black uppercase">종합 성취 등급</p>
+                                   <span className="text-[140px] font-black leading-none mb-6 font-black font-black" style={{color: summary?.color}}>{summary?.grade}</span>
+                                   <div className="px-8 py-3 rounded-full bg-white border-2 border-blue-100 text-sm font-black uppercase text-blue-700 font-black uppercase">평균 {summary?.avg} 점</div>
+                                </div>
+                                <div className="bg-blue-50/50 p-10 rounded-[55px] border-2 border-blue-100 text-center flex flex-col items-center justify-center shadow-inner">
+                                   <Icon name="CalendarCheck" size={64} color="#3B82F6" className="mb-10" />
+                                   <p className="text-slate-400 text-xs font-black uppercase mb-4 tracking-widest font-black uppercase font-black uppercase font-black uppercase">재활 권고 주기</p>
+                                   <h4 className="text-3xl font-black text-slate-900 leading-tight uppercase font-black font-black">{summary?.rehab}</h4>
+                                </div>
+                                <div className={`p-10 rounded-[55px] border-2 text-center flex flex-col items-center justify-center shadow-inner transition-all ${parseFloat(summary?.risk) > 50 ? 'bg-rose-50 border-rose-300 animate-pulse' : 'bg-blue-50/50 border-blue-100'}`}>
+                                   <Icon name="AlertTriangle" size={64} color={parseFloat(summary?.risk) > 50 ? '#E11D48' : '#3B82F6'} className="mb-10" />
+                                   <p className="text-slate-400 text-xs font-black uppercase mb-4 tracking-widest font-black uppercase uppercase font-black uppercase">뇌졸중 위험 인덱스</p>
+                                   <span className="text-7xl font-black text-slate-900 font-black leading-none font-black">{summary?.risk}%</span>
+                                </div>
+                             </div>
+                             <div className="bg-white p-10 rounded-[45px] border-4 border-blue-100 mb-10 shadow-sm">
+                                <h3 className="text-blue-700 font-black text-sm uppercase tracking-widest mb-8 flex items-center gap-3 italic"><Icon name="ShieldCheck" size={24} /> Preview Complete</h3>
+                                <p className="text-slate-600 font-bold text-xl leading-relaxed font-black">
+                                    훈련 분석이 종료되었습니다. 위 등급을 확인하시고, 상세 분석과 전문가의 맞춤형 소견이 포함된 <strong>A4 2장 분량의 전문 리포트</strong>를 생성하여 의료진에게 제출하십시오.
+                                </p>
+                             </div>
                           </div>
                         )}
-                       </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* --- 인쇄 전용 레이아웃 (A4 2장 분량 대응) --- */}
-              <div className="hidden print:block bg-white text-black h-screen relative report-page" style={{border: '1px solid #eee', width: '210mm', height: '297mm', margin: '0 auto'}}>
-                {/* 1페이지 상단 */}
-                <div className="flex justify-between items-center border-b-4 border-slate-900 pb-6 mb-8">
-                  <h1 className="text-3xl font-black tracking-tighter uppercase font-black font-black uppercase">임상 정밀 진단 및 예후 리포트</h1>
+              {/* --- 인쇄 전용 레이아웃 (A4 2장 고해상도) --- */}
+              {/* 1페이지: 핵심 점수 요약 */}
+              <div className="hidden print:block report-page">
+                <div className="flex justify-between items-center border-b-8 border-slate-900 pb-8 mb-12">
+                  <h1 className="text-[52px] font-black tracking-tighter uppercase leading-none font-black font-black">임상 정밀 진단 및 예후 리포트</h1>
                   <div className="text-right leading-tight">
-                    <p className="text-sm font-bold uppercase tracking-widest text-slate-900 font-black font-black uppercase">Golden Braincare Pro-Elite Hub</p>
-                    <p className="text-[10px] text-slate-500 font-bold font-black uppercase">Diagnostic Hub v5.8-FINAL</p>
-                    <p className="text-[9px] text-slate-400 mt-1 font-bold font-black uppercase">{new Date().toLocaleString()}</p>
+                    <p className="text-xl font-black uppercase tracking-widest text-slate-900 font-black">BrainTalkTalk Hub</p>
+                    <p className="text-xs text-slate-400 mt-2 font-bold font-black">{new Date().toLocaleString()}</p>
                   </div>
                 </div>
 
-                <div className="mb-8 p-6 bg-slate-50 border-2 border-slate-200 rounded-3xl grid grid-cols-3 gap-8 shadow-sm">
-                    <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-bold uppercase">성명 (NAME)</span><span className="text-xl font-black text-slate-900 font-black">{userInfo.name}</span></div>
-                    <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-bold uppercase">나이 (AGE)</span><span className="text-xl font-black text-slate-900 font-black font-black">{userInfo.age}세</span></div>
-                    <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-bold uppercase">성별 (GENDER)</span><span className="text-xl font-black text-slate-900 font-black font-black">{userInfo.gender.split(' ')[0]}</span></div>
+                <div className="mb-10 p-10 bg-slate-50 border-4 border-slate-200 rounded-[50px] grid grid-cols-3 gap-12 shadow-sm">
+                    <div className="flex flex-col"><span className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 font-black">성명 (NAME)</span><span className="text-4xl font-black text-slate-900 font-black">{userInfo.name}</span></div>
+                    <div className="flex flex-col"><span className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 font-black">나이 (AGE)</span><span className="text-4xl font-black text-slate-900 font-black">{userInfo.age}세</span></div>
+                    <div className="flex flex-col"><span className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 font-black">성별 (GENDER)</span><span className="text-4xl font-black text-slate-900 font-black">{userInfo.gender.split(' ')[0]}</span></div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-6 mb-8 h-64">
-                  <div className="border-2 border-slate-900 p-8 rounded-3xl text-center flex flex-col justify-center h-64 shadow-sm">
-                    <h4 className="text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest font-black uppercase">종합 성취 등급</h4>
-                    <span className="text-[100px] font-black leading-none font-black font-black font-black font-black">{summary?.grade}</span>
-                    <p className="mt-4 font-bold text-lg text-slate-900 uppercase font-black font-black font-black font-black uppercase">평균 {summary?.avg} / 10.0 점</p>
+                <div className="grid grid-cols-3 gap-8 mb-14 h-72">
+                  <div className="border-4 border-slate-900 p-12 rounded-[60px] text-center flex flex-col justify-center shadow-md">
+                    <h4 className="text-xs font-black uppercase text-slate-500 mb-6 tracking-widest font-black uppercase">종합 성취 등급</h4>
+                    <span className="text-[120px] font-black leading-none text-slate-900 font-black">{summary?.grade}</span>
+                    <p className="mt-8 font-black text-3xl text-slate-900 uppercase font-black font-black">평균 {summary?.avg} 점</p>
                   </div>
-                  <div className="border-2 border-slate-900 p-8 rounded-3xl text-center flex flex-col items-center justify-center h-64 shadow-sm">
-                    <h4 className="text-[10px] font-black uppercase text-slate-500 mb-6 tracking-widest font-black uppercase font-black font-black">재활 권고 주기</h4>
-                    <div className="bg-slate-100 p-5 rounded-2xl border border-slate-200 shadow-inner w-full font-black text-slate-900 text-xl uppercase leading-tight font-black font-black font-black text-center font-black uppercase leading-tight">{summary?.rehab}</div>
+                  <div className="border-4 border-slate-900 p-12 rounded-[60px] text-center flex flex-col items-center justify-center shadow-md">
+                    <h4 className="text-xs font-black uppercase text-slate-500 mb-10 tracking-widest font-black uppercase">재활 권고 주기</h4>
+                    <div className="bg-slate-100 p-8 rounded-[40px] border-2 border-slate-200 w-full font-black text-slate-900 text-3xl leading-tight font-black font-black uppercase leading-tight font-black">{summary?.rehab}</div>
                   </div>
-                  <div className={`border-2 p-8 rounded-3xl text-center flex flex-col justify-center h-64 shadow-sm ${parseFloat(summary?.risk) > 50 ? 'border-red-600 bg-red-50' : 'border-slate-900'}`}>
-                    <h4 className="text-[10px] font-black uppercase text-slate-500 mb-4 tracking-widest font-black text-center uppercase font-black uppercase leading-none mb-3 uppercase font-black">뇌졸중 위험 인덱스</h4>
-                    <span className="text-7xl font-black text-center font-black leading-none font-black font-black font-black">{summary?.risk}%</span>
-                    <p className="text-[11px] font-bold mt-4 leading-tight text-slate-700 font-black text-center font-black uppercase">SYSTEM STABLE: NO SIGNIFICANT NEUROLOGICAL SYMPTOMS.</p>
+                  <div className={`border-4 p-12 rounded-[60px] text-center flex flex-col justify-center shadow-md ${parseFloat(summary?.risk) > 50 ? 'border-red-600 bg-red-50' : 'border-slate-900'}`}>
+                    <h4 className="text-xs font-black uppercase text-slate-500 mb-6 tracking-widest font-black uppercase uppercase font-black uppercase">뇌졸중 위험 인덱스</h4>
+                    <span className="text-[100px] font-black text-slate-900 font-black leading-none font-black">{summary?.risk}%</span>
                   </div>
                 </div>
 
-                <div className="mb-6">
-                  <h4 className="text-[14px] font-black border-b-2 border-slate-300 mb-6 pb-2 uppercase tracking-[0.2em] font-black font-black font-black uppercase font-black uppercase">SECTION 3. 20문항 정밀 데이터 (Scorecard)</h4>
-                  <div className="grid grid-cols-5 gap-3">
+                <div className="mb-10">
+                  <h4 className="text-2xl font-black border-b-4 border-slate-300 mb-10 pb-3 uppercase tracking-[0.2em] font-black font-black font-black font-black uppercase font-black">SECTION 3. 20문항 정밀 데이터 카드 (Scorecard)</h4>
+                  <div className="grid grid-cols-5 gap-4">
                     {testResults.map((r, i) => (
-                      <div key={i} className="border border-slate-300 p-4 rounded-xl flex flex-col gap-1 bg-slate-50 shadow-sm">
-                        <div className="flex justify-between text-[9px] font-black uppercase leading-none mb-1 font-black font-black font-black leading-none uppercase"><span className="text-slate-400 font-bold font-black">ITEM #{i+1}</span><span className={r.hit ? "text-green-600 font-black font-black" : "text-red-600 font-black font-black"}>{r.hit ? "HIT" : "MISS"}</span></div>
-                        <div className="font-bold text-[12px] truncate uppercase text-slate-800 font-black leading-tight mb-1 font-black font-black uppercase">{r.task}</div>
-                        <div className="text-right text-2xl font-black text-blue-900 leading-none font-black font-black font-black">{r.score}<span className="text-[10px] text-slate-400 font-bold font-black">/10</span></div>
+                      <div key={i} className="border-2 border-slate-200 p-5 rounded-[30px] flex flex-col gap-2 bg-slate-50 shadow-sm">
+                        <div className="flex justify-between text-[11px] font-black uppercase leading-none mb-1 font-black uppercase font-black"><span className="text-slate-400">ITEM #{i+1}</span><span className={r.hit ? "text-emerald-600 font-black" : "text-rose-600 font-black"}>{r.hit ? "HIT" : "MISS"}</span></div>
+                        <div className="font-black text-base truncate uppercase text-slate-800 leading-tight mb-2 font-black font-black">{r.task}</div>
+                        <div className="text-right text-3xl font-black text-blue-900 leading-none font-black font-black">{r.score}<span className="text-xs text-slate-400 font-bold ml-1">/10</span></div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="absolute bottom-12 left-12 right-12 pt-10 border-t flex justify-between items-center text-[12px] font-bold text-slate-400 uppercase tracking-widest font-black uppercase leading-none font-black uppercase">
-                   <p>본 리포트는 MFDS 소프트웨어 의료기기 인증 기준을 준수하며, 골든 브레인케어 AI 엔진에 의해 자동 생성되었습니다. (1/2)</p>
-                   <div className="flex items-center gap-2 font-black italic uppercase leading-none font-bold leading-none uppercase font-black font-black font-black font-black uppercase"><Icon name="Award" size={14} color="#94a3b8" /> Golden Braincare INC.</div>
+                <div className="mt-auto pt-10 border-t-4 border-slate-100 flex justify-between items-center text-sm font-black text-slate-400 uppercase tracking-widest font-black">
+                   <p>본 결과는 전문 의료진의 참고 자료로 활용되며 법적 효력은 진단 기준에 따릅니다. (1/2)</p>
+                   <div className="flex items-center gap-2 font-black italic font-black uppercase font-black uppercase font-black"><Icon name="Award" size={24} /> GOLDEN BRAINCARE INC.</div>
                 </div>
               </div>
 
-              {/* --- 인쇄 2페이지 --- */}
-              <div className="hidden print:block bg-white text-black h-screen relative report-page page-break" style={{border: '1px solid #eee', width: '210mm', height: '297mm', margin: '0 auto'}}>
-                <div className="flex justify-between items-center border-b-4 border-slate-900 pb-6 mb-12">
-                   <h2 className="text-3xl font-black tracking-tighter uppercase font-black font-black uppercase font-black uppercase">정밀 임상 데이터 분석 및 소견</h2>
-                   <div className="text-right leading-tight uppercase font-black"><p className="text-xs font-bold text-slate-500 font-black uppercase">Patient ID: {userInfo.name}_{userInfo.age}</p></div>
+              {/* 2페이지: 상세 분석 및 임상 소견 */}
+              <div className="hidden print:block report-page">
+                <div className="flex justify-between items-center border-b-8 border-slate-900 pb-8 mb-14">
+                   <h2 className="text-[48px] font-black tracking-tighter uppercase font-black font-black font-black font-black uppercase">정밀 임상 데이터 분석 및 소견</h2>
+                   <div className="text-right leading-tight font-black font-black uppercase"><p className="text-lg font-bold text-slate-500 font-black">P-ID: {userInfo.name.charAt(0)}*{userInfo.name.slice(2)}_{userInfo.age}</p></div>
                 </div>
 
-                <div className="mb-12">
-                    <h4 className="text-[14px] font-black border-b-2 border-slate-300 mb-8 pb-2 uppercase tracking-[0.2em] font-black font-black font-black uppercase font-black uppercase">임상 지표 성숙도 분석 (Radar Analysis)</h4>
-                    <div className="flex items-center justify-center h-96 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                <div className="mb-20">
+                    <h4 className="text-2xl font-black border-b-4 border-slate-300 mb-14 pb-4 uppercase tracking-[0.2em] font-black font-black uppercase font-black font-black">임상 지표 성숙도 분석 (Radar Analysis)</h4>
+                    <div className="flex items-center justify-center h-[550px] w-full mx-auto p-10 bg-slate-50 rounded-[60px] border-2 border-slate-100 shadow-inner">
+                        <ResponsiveContainer width="95%" height="100%">
                             {RadarChart && (
                                 <RadarChart data={radarData}>
-                                    <PolarGrid stroke="#eee" /><PolarAngleAxis dataKey="subject" tick={{ fill: '#333', fontSize: 14, fontWeight: 900 }} /><Radar dataKey="A" stroke="#856404" fill="#D4AF37" fillOpacity={0.4} strokeWidth={4} />
+                                    <PolarGrid stroke="#CBD5E1" strokeWidth={2} />
+                                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#1E293B', fontSize: 18, fontWeight: 900 }} />
+                                    <Radar dataKey="A" stroke="#2563EB" fill="#3B82F6" fillOpacity={0.45} strokeWidth={8} />
                                 </RadarChart>
                             )}
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                <div className="border-t-4 border-slate-900 pt-10 mt-16 relative">
-                  <h4 className="text-2xl font-black mb-10 italic text-slate-900 uppercase tracking-widest font-black font-black font-black uppercase uppercase font-black uppercase uppercase font-black uppercase">임상 전문가 종합 소견 (SLP Clinical Insight)</h4>
-                  <div className="border-l-8 border-slate-900 pl-8 py-8 bg-slate-50 rounded-r-[40px] shadow-sm">
-                    <p className="text-[22px] font-black leading-[1.6] font-bold tracking-tight text-slate-800 font-black font-black font-black font-black uppercase leading-relaxed">
-                       본 세션 분석 결과, <strong>{userInfo.name}</strong> 님의 조음 정확도 및 낱말 인출 능력은 K-WAB 정상군 규준 대비 상위 { summary?.percentile }% 수준으로 <strong>'{summary?.grade}'</strong> 등급 판정되었습니다. 
+                <div className="border-t-8 border-slate-900 pt-16 mt-auto relative">
+                  <h4 className="text-3xl font-black mb-12 italic text-slate-900 uppercase tracking-widest font-black uppercase font-black font-black font-black uppercase font-black font-black uppercase">임상 전문가 종합 소견 (SLP Clinical Insight)</h4>
+                  <div className="border-l-[16px] border-slate-900 pl-12 py-12 bg-slate-50 rounded-r-[70px] shadow-xl border-y border-r border-slate-200">
+                    <p className="text-[30px] font-black leading-[1.8] tracking-tight text-slate-800 font-black font-black font-black font-black font-black leading-relaxed">
+                       본 세션 분석 결과, 환자 <strong>{userInfo.name}</strong> 님의 조음 정확도 및 낱말 인출 능력은 K-WAB 정상군 규준 대비 상위 { summary?.percentile }% 수준으로 <strong>'{summary?.grade}'</strong> 등급 판정되었습니다. 
                        <br/><br/>
-                       특히 안면 비대칭 편차와 발화 잠복기(Latency) 데이터를 종합할 때 <strong>뇌졸중 위험 지수는 {summary?.risk}%</strong>로 기록되었습니다. 현재 비교적 안정적인 신경학적 상태를 유지하고 있는 것으로 판단됩니다.
+                       특히 안면 비대칭 편차와 발화 잠복기(Latency) 데이터를 종합할 때 <strong>뇌졸중 위험 지수는 {summary?.risk}%</strong>로 기록되었습니다. {parseFloat(summary?.risk) > 50 ? "미세한 마비 징후가 의심되는 고위험 상태이므로 즉각적인 신경학적 정밀 검진을 권고합니다." : "현재 비교적 안정적인 신경학적 상태를 유지하고 있는 것으로 판단됩니다."}
                     </p>
                   </div>
-                  <div className="mt-12 flex items-center gap-4 text-emerald-700 font-black text-lg uppercase tracking-widest font-black uppercase leading-none font-black font-black font-black font-black uppercase font-black"><Icon name="Check" size={24} color="#047857" strokeWidth={4} /> Diagnostic Reliability Verified (R ≥ 0.89)</div>
+                  <div className="mt-16 flex items-center gap-6 text-emerald-700 font-black text-3xl uppercase tracking-widest font-black uppercase font-black font-black font-black font-black font-black"><Icon name="CheckCircle" size={48} color="#059669" /> Diagnostic Reliability Verified (R ≥ 0.89)</div>
                 </div>
 
-                <div className="absolute bottom-12 left-12 right-12 pt-10 border-t flex justify-between items-center text-[12px] font-bold text-slate-400 uppercase tracking-widest font-black uppercase leading-none font-black uppercase font-black font-black font-black uppercase">
-                   <p>본 리포트는 환자의 데이터 보안을 위해 암호화되어 관리됩니다. (2/2)</p>
-                   <div className="flex items-center gap-2 font-black italic uppercase leading-none font-bold leading-none uppercase font-black font-black font-black font-black uppercase"><Icon name="Award" size={14} color="#94a3b8" /> Golden Braincare INC.</div>
+                <div className="mt-auto pt-10 border-t-4 border-slate-100 flex justify-between items-center text-sm font-black text-slate-400 uppercase tracking-widest font-black font-black font-black">
+                   <p>본 리포트의 지적 재산권은 Golden Braincare INC.에 있습니다. (2/2)</p>
+                   <div className="flex items-center gap-2 font-black italic uppercase font-black uppercase font-black uppercase font-black uppercase font-black"><Icon name="Award" size={24} /> Golden Braincare INC.</div>
                 </div>
               </div>
             </div>

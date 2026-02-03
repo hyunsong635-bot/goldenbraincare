@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Golden Braincare Elite Hub - Final System</title>
     
-    <!-- 필수 라이브러리 로드 순서 최적화 (의존성 및 충돌 해결) -->
+    <!-- 필수 라이브러리 로드 순서 최적화 (React -> Recharts -> Lucide) -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
@@ -45,7 +45,7 @@
             .report-page {
                 width: 210mm;
                 height: 297mm;
-                padding: 12mm;
+                padding: 10mm;
                 margin: 0 auto;
                 background: white !important;
                 color: black !important;
@@ -65,7 +65,7 @@
             .text-[#D4AF37] { color: #856404 !important; font-weight: 900 !important; }
             
             /* 차트 인쇄 가독성 향상 */
-            .recharts-wrapper { max-width: 100% !important; filter: contrast(1.1) saturate(1.2); }
+            .recharts-wrapper { max-width: 100% !important; filter: contrast(1.1); }
         }
     </style>
 </head>
@@ -76,31 +76,26 @@
         const { useState, useEffect, useRef, useMemo } = React;
 
         /**
-         * 안전한 아이콘 렌더러 (React DOM 충돌 방지)
+         * 안전한 아이콘 렌더러 (React DOM 충돌 방지 최적화)
+         * Lucide가 DOM을 직접 조작해 removeChild 에러를 내는 것을 방지
          */
         const Icon = ({ name, size = 24, className = "", color = "currentColor", fill = "none" }) => {
-            const containerRef = useRef(null);
-            useEffect(() => {
-                if (containerRef.current && window.lucide) {
-                    const icon = window.lucide.icons[name];
-                    if (icon) {
-                        const iconHtml = icon.toSvg({
-                            width: size,
-                            height: size,
-                            stroke: color,
-                            fill: fill,
-                            class: className,
-                            "stroke-width": 2
-                        });
-                        containerRef.current.innerHTML = iconHtml;
-                    }
-                }
+            const iconHtml = useMemo(() => {
+                if (!window.lucide || !window.lucide.icons[name]) return '';
+                return window.lucide.icons[name].toSvg({
+                    width: size,
+                    height: size,
+                    stroke: color,
+                    fill: fill,
+                    class: className,
+                    "stroke-width": 2
+                });
             }, [name, size, color, fill, className]);
 
-            return <span ref={containerRef} className="inline-flex items-center justify-center pointer-events-none"></span>;
+            return <span className="inline-flex items-center justify-center pointer-events-none" dangerouslySetInnerHTML={{ __html: iconHtml }}></span>;
         };
 
-        // --- 정제된 임상 프로토콜 (나, 가, 요, 무지개 제외) ---
+        // --- 임상 프로토콜 데이터 ---
         const CLINICAL_PROTOCOLS = {
           STANDARD: {
             title: "LEVEL 1. 종합 실어증 지수 선별",
@@ -125,7 +120,7 @@
           ANOMIC: { title: "LEVEL 6. 명칭 실어증 (ANOMIC)", subtitle: "단어인출장애 및 우회 전략 훈련", items: [] }
         };
 
-        // 데이터 초기화
+        // 데이터 동기화
         Object.keys(CLINICAL_PROTOCOLS).forEach(key => {
           if (CLINICAL_PROTOCOLS[key].items.length === 0) {
             CLINICAL_PROTOCOLS[key].items = CLINICAL_PROTOCOLS.STANDARD.items.map(it => ({ ...it, id: Math.random() }));
@@ -146,8 +141,8 @@
           const videoRef = useRef(null);
           const streamRef = useRef(null);
 
-          // Recharts 컴포넌트 안전 추출 (ReferenceError 방지)
-          const RC = window.Recharts || {};
+          // Recharts 컴포넌트 ReferenceError 방지용 안전 참조
+          const RC = useMemo(() => window.Recharts || {}, []);
 
           const handlePrint = () => { window.print(); };
 
@@ -165,7 +160,7 @@
             setShowReport(false);
           };
 
-          // 대시보드 실시간 데이터 업데이트 시뮬레이션
+          // 실시간 모니터링 시뮬레이션
           useEffect(() => {
             let interval;
             if (activeTab === 'dashboard' || isProcessing) {
@@ -185,13 +180,13 @@
             return () => clearInterval(interval);
           }, [activeTab, isProcessing]);
 
-          // 훈련 프로세스 제어
+          // 타이머 제어
           useEffect(() => {
             let timer;
             if (isProcessing && timeLeft > 0) {
               timer = setInterval(() => setTimeLeft(p => p - 1), 1000);
             } else if (isProcessing && timeLeft === 0) {
-              const score = Math.floor(Math.random() * 5) + 6; 
+              const score = Math.floor(Math.random() * 5) + 5; 
               setTestResults(prev => [...prev, { task: CLINICAL_PROTOCOLS[clinicalMode].items[currentIndex].task, score, hit: score >= 7 }]);
               if (currentIndex < 19) {
                 setCurrentIndex(p => p + 1);
@@ -205,7 +200,6 @@
             return () => clearInterval(timer);
           }, [isProcessing, timeLeft, currentIndex, clinicalMode]);
 
-          // 샘플 리포트 생성 (즉시 확인 기능)
           const generateSample = () => {
             const samples = CLINICAL_PROTOCOLS[clinicalMode].items.map(it => ({
               task: it.task,
@@ -230,11 +224,10 @@
               setShowReport(false);
               setIsProcessing(true);
             } catch (err) {
-              alert("카메라 사용 권한이 거부되었거나 사용 중입니다.");
+              alert("카메라 사용 권한이 필요합니다.");
             }
           };
 
-          // 결과 분석 연산 (SLP 인사이트 자동 생성 포함)
           const summary = useMemo(() => {
             if (testResults.length === 0) return null;
             const avg = parseFloat((testResults.reduce((a, b) => a + b.score, 0) / testResults.length).toFixed(1));
@@ -257,14 +250,14 @@
 
           return (
             <div className="min-h-screen">
-              {/* --- 일반 웹 화면 UI --- */}
+              {/* --- DASHBOARD UI --- */}
               <div className="print:hidden p-8 animate-in fade-in duration-700">
                 <header className="flex justify-between items-start mb-8 border-b border-slate-700/50 pb-6">
                   <div className="flex items-center gap-6">
                     <div className="p-3 bg-[#D4AF37] rounded-xl shadow-lg"><Icon name="BrainCircuit" color="#0F172A" /></div>
                     <div>
                       <h1 className="text-2xl font-black text-white uppercase tracking-tighter italic leading-none font-bold">GOLDEN BRAINCARE <span className="text-[#D4AF37]">ELITE HUB</span></h1>
-                      <p className="text-slate-400 text-xs font-bold flex items-center gap-2 mt-1 uppercase tracking-widest opacity-70">
+                      <p className="text-slate-400 text-xs font-bold flex items-center gap-2 mt-1 uppercase tracking-widest opacity-70 leading-none">
                         <Icon name="Stethoscope" size={12} color="#D4AF37" /> SPECIALIST DIAGNOSIS & REHAB INTEGRATED HUB
                       </p>
                     </div>
@@ -351,7 +344,7 @@
                           )}
                         </div>
                       </div>
-                      <div className="bg-black p-1.5 rounded-[40px] border-2 border-slate-700 shadow-2xl aspect-[4/3] relative overflow-hidden">
+                      <div className="bg-black p-1.5 rounded-[40px] border-2 border-slate-700 shadow-2xl aspect-[4/3] relative overflow-hidden group">
                         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover rounded-[38px] mirror opacity-80" />
                         {isProcessing && (
                           <div className="absolute inset-0 pointer-events-none">
@@ -369,7 +362,7 @@
                             <div className="text-center mb-14">
                               <span className="bg-[#D4AF37]/10 text-[#D4AF37] px-8 py-3 rounded-2xl text-[10px] font-black uppercase mb-12 inline-block border border-[#D4AF37]/40 shadow-2xl tracking-[0.4em]">MODULE: {currentIndex + 1} / 20</span>
                               <h4 className="text-slate-300 font-black mb-4 uppercase tracking-[0.3em] text-[10px] opacity-70">{CLINICAL_PROTOCOLS[clinicalMode].items[currentIndex].category}</h4>
-                              <h2 className="text-7xl font-black text-white mb-12 leading-tight tracking-tighter shadow-sm uppercase font-bold uppercase">"{CLINICAL_PROTOCOLS[clinicalMode].items[currentIndex].task}"</h2>
+                              <h2 className="text-7xl font-black text-white mb-12 leading-tight tracking-tighter shadow-sm uppercase font-bold">"{CLINICAL_PROTOCOLS[clinicalMode].items[currentIndex].task}"</h2>
                             </div>
                             <div className="w-56 h-56 relative flex items-center justify-center">
                               <svg className="w-full h-full transform -rotate-90"><circle cx="50%" cy="50%" r="45%" stroke="#0f172a" strokeWidth="15" fill="transparent" /><circle cx="50%" cy="50%" r="45%" stroke="#D4AF37" strokeWidth="15" fill="transparent" strokeDasharray="283" strokeDashoffset={283 - (283 * timeLeft) / 10} className="transition-all duration-1000 ease-linear shadow-[0_0_40px_#D4AF37]" /></svg>
@@ -379,14 +372,14 @@
                         ) : !showReport ? (
                            <div className="flex-1 flex flex-col justify-center items-center opacity-30">
                              <div className="w-48 h-48 bg-slate-900 rounded-[64px] flex items-center justify-center mb-12 border-2 border-slate-700 shadow-2xl rotate-3 transition-transform hover:rotate-0 duration-500"><Icon name="ClipboardList" size={80} color="#D4AF37" /></div>
-                             <h3 className="text-4xl font-black text-white tracking-tighter mb-4 uppercase italic text-center font-bold">Pro-Engine Hub</h3>
+                             <h3 className="text-4xl font-black text-white tracking-tighter mb-4 uppercase italic text-center font-bold">Pro-Engine Standby</h3>
                              <p className="font-black text-slate-400 leading-relaxed uppercase tracking-[0.5em] text-[12px] text-center italic font-bold">Select clinical protocol and press 'Start' to begin assessment.</p>
                            </div>
                         ) : (
-                          /* --- 화면 리포트 --- */
+                          /* --- 리포트 화면 --- */
                           <div className="relative z-10 flex flex-col h-full animate-in fade-in duration-1000 overflow-y-auto custom-scroll pr-4 pb-12">
                             <div className="flex items-center justify-between mb-12 pb-8 border-b border-slate-700/60">
-                               <div><h2 className="text-6xl font-black tracking-tight text-white uppercase italic mb-2 leading-none font-bold font-black">DIAGNOSTIC PROGNOSIS</h2><p className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-[0.3em] font-bold">{CLINICAL_PROTOCOLS[clinicalMode].title}</p></div>
+                               <div><h2 className="text-6xl font-black tracking-tight text-white uppercase italic mb-2 leading-none font-bold">DIAGNOSTIC PROGNOSIS</h2><p className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-[0.3em] font-bold">{CLINICAL_PROTOCOLS[clinicalMode].title}</p></div>
                                <button onClick={handlePrint} className="bg-[#10B981] hover:bg-[#059669] text-white px-10 py-5 rounded-[40px] font-black flex items-center gap-4 shadow-xl uppercase tracking-tighter transition-all active:scale-95 font-bold font-bold leading-none"><Icon name="Printer" color="white" size={22} /> SAVE METADATA (PDF)</button>
                             </div>
 
@@ -448,12 +441,12 @@
                                  </div>
                                </div>
                                <div className="bg-[#0F172A] p-12 rounded-[60px] border border-slate-700 shadow-2xl relative overflow-hidden flex flex-col justify-center">
-                                  <h5 className="font-black text-[#D4AF37] uppercase tracking-widest text-[12px] mb-8 italic flex items-center gap-4 border-l-4 border-[#D4AF37] pl-6 font-bold uppercase font-black">SLP CLINICAL INSIGHT</h5>
+                                  <h5 className="font-black text-[#D4AF37] uppercase tracking-widest text-[12px] mb-8 italic flex items-center gap-4 border-l-4 border-[#D4AF37] pl-6 font-bold uppercase font-black leading-none">SLP CLINICAL INSIGHT</h5>
                                   <p className="text-lg text-slate-300 leading-relaxed font-bold tracking-tight font-bold">
                                      본 세션 분석 결과, 환자의 조음 정확도 및 낱말 인출 능력은 K-WAB 정상군 규준 대비 상위 { summary?.percentile }% 수준으로 <strong>'{summary?.grade}'</strong> 등급 판정되었습니다. 
-                                     특히 안면 비대칭 편차와 발화 잠복기(Latency) 데이터를 종합할 때 <strong>뇌졸중 위험 지수는 {summary?.risk}%</strong>로 {parseFloat(summary?.risk) > 50 ? "미세한 마비 징후가 의심되는 상태입니다. 정밀 관찰이 필요합니다." : "비교적 안정적입니다."}
+                                     특히 안면 비대칭 편차와 발화 잠복기(Latency) 데이터를 종합할 때 <strong>뇌졸중 위험 지수는 {summary?.risk}%</strong>로 {parseFloat(summary?.risk) > 50 ? "미세한 마비 징후가 의심되는 상태입니다. 신경학적 정밀 관찰이 필요합니다." : "비교적 안정적인 상태를 유지하고 있습니다."}
                                   </p>
-                                  <div className="mt-10 pt-10 border-t border-slate-800 flex items-center gap-5 text-emerald-400 font-bold uppercase text-[11px] font-black">
+                                  <div className="mt-10 pt-10 border-t border-slate-800 flex items-center gap-5 text-emerald-400 font-bold uppercase text-[11px] font-black leading-none">
                                      <Icon name="Check" size={24} color="#34d399" />
                                      Diagnostic Reliability Verified (R ≥ 0.89)
                                   </div>
@@ -489,9 +482,9 @@
                     <div className="bg-slate-100 p-5 rounded-2xl border border-slate-200 shadow-inner w-full font-black text-slate-900 text-xl uppercase leading-tight font-black text-center">{summary?.rehab}</div>
                   </div>
                   <div className={`border-2 p-8 rounded-3xl text-center flex flex-col justify-center h-64 shadow-sm ${parseFloat(summary?.risk) > 50 ? 'border-red-600 bg-red-50' : 'border-slate-900'}`}>
-                    <h4 className="text-[10px] font-black uppercase text-slate-500 mb-4 tracking-widest font-black text-center uppercase">뇌졸중 위험 인덱스</h4>
-                    <span className="text-7xl font-black text-center font-black leading-none">{summary?.risk}%</span>
-                    <p className="text-[11px] font-bold mt-4 leading-tight text-slate-700 font-black text-center">{parseFloat(summary?.risk) > 50 ? "주의: 안면 비대칭 및 지연 수치 임계값 초과.\n전문의 정밀 진단을 강력히 권고합니다." : "정상: 안정적인 신경학적 상태를 유지 중."}</p>
+                    <h4 className="text-[10px] font-black uppercase text-slate-500 mb-4 tracking-widest font-black text-center uppercase leading-none mb-4">뇌졸중 위험 인덱스</h4>
+                    <span className="text-7xl font-black text-center font-black leading-none mb-4">{summary?.risk}%</span>
+                    <p className="text-[11px] font-bold mt-2 leading-tight text-slate-700 font-black text-center">{parseFloat(summary?.risk) > 50 ? "주의: 안면 비대칭 및 지연 수치 임계값 초과.\n전문의 정밀 진단을 강력히 권고합니다." : "정상: 안정적인 신경학적 상태를 유지 중."}</p>
                   </div>
                 </div>
 
@@ -513,10 +506,10 @@
                   <div className="border-l-8 border-slate-900 pl-8 py-4 bg-slate-50 rounded-r-3xl">
                     <p className="text-[18px] font-black leading-relaxed font-bold tracking-tight text-slate-800 font-black">
                        본 세션 분석 결과, 환자의 조음 정확도 및 낱말 인출 능력은 K-WAB 정상군 규준 대비 상위 { summary?.percentile }% 수준으로 <strong>'{summary?.grade}'</strong> 등급 판정되었습니다. 
-                       특히 안면 비대칭 편차와 발화 잠복기(Latency) 데이터를 종합할 때 <strong>뇌졸중 위험 지수는 {summary?.risk}%</strong>로 {parseFloat(summary?.risk) > 50 ? "미세한 마비 징후가 의심되는 상태입니다. 정밀 관찰이 필요합니다." : "비교적 안정적인 상태를 유지하고 있습니다."}
+                       특히 안면 비대칭 편차와 발화 잠복기(Latency) 데이터를 종합할 때 <strong>뇌졸중 위험 지수는 {summary?.risk}%</strong>로 {parseFloat(summary?.risk) > 50 ? "미세한 마비 징후가 의심되는 상태입니다. 신경학적 정밀 관찰이 필요합니다." : "비교적 안정적인 상태를 유지하고 있습니다."}
                     </p>
                   </div>
-                  <div className="mt-8 flex items-center gap-4 text-emerald-700 font-black text-sm uppercase tracking-widest font-black uppercase leading-none"><Icon name="Check" size={18} color="#047857" strokeWidth={4} /> Diagnostic Reliability Verified (R ≥ 0.89)</div>
+                  <div className="mt-8 flex items-center gap-4 text-emerald-700 font-black text-sm uppercase tracking-widest font-black uppercase leading-none"><Icon name="Check" size={18} color="#047857" /> Diagnostic Reliability Verified (R ≥ 0.89)</div>
                 </div>
 
                 <div className="absolute bottom-12 left-12 right-12 pt-10 border-t flex justify-between items-center text-[12px] font-bold text-slate-400 uppercase tracking-widest font-black uppercase leading-none">

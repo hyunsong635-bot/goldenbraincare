@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrainMic 전문 분석 대시보드</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons SDK -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+        .font-mono {
+            font-family: 'JetBrains+Mono', monospace;
+        }
+        .glass-header {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+        }
+        /* Progress Circle Animation */
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.1s linear;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        /* Fade-in Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-[#f0f9ff] text-slate-800 p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8 border-b border-blue-100 pb-6 glass-header -mx-6 px-6 -mt-6 rounded-b-[3rem] shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
+                    <i data-lucide="brain" size="28"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight text-slate-900">GOLDEN BRAINCARE <span class="text-blue-600 font-light">ELITE HUB</span></h1>
+                    <p class="text-blue-400 text-[10px] font-bold uppercase tracking-[0.2em]">Neuro-Acoustic Analysis v4.3.0</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-100 text-blue-600">
+                    <i data-lucide="database" size="14"></i>
+                    <span class="text-[10px] font-black uppercase">AI HUB 데이터 검증 완료</span>
+                </div>
+                <button class="p-2 text-slate-400 hover:text-blue-600 transition-colors"><i data-lucide="history" size="20"></i></button>
+                <button id="startBtn" onclick="startAnalysis()" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-bold transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2">
+                    <i id="btnIcon" data-lucide="mic-2" size="18"></i>
+                    <span id="btnText">진단 시작</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="metrics-grid">
+                    <!-- Cards will be rendered here via JS -->
+                </div>
+
+                <!-- AI Hub Comparison Graph -->
+                <div class="bg-white border border-blue-50 rounded-[2.5rem] p-8 shadow-sm">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                        <div>
+                            <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
+                                <i data-lucide="bar-chart-3" class="text-blue-600" size="20"></i>
+                                AI Hub 벤치마킹 성능 분석 (Sensitivity & Accuracy)
+                            </h3>
+                            <p class="text-[11px] text-slate-400 font-medium">국가 표준 노인 자유대화 음성 데이터셋(2,500h) 대비 진단 우위 입증</p>
+                        </div>
+                        <div class="flex gap-4 p-1.5 bg-slate-50 rounded-xl px-4 border border-slate-100">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 bg-blue-100 rounded-sm"></div>
+                                <span class="text-[10px] font-bold text-slate-400">일반 AI (S-DTx)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 bg-blue-600 rounded-sm shadow-sm shadow-blue-500/30"></div>
+                                <span class="text-[10px] font-bold text-blue-600">BrainMic (H-DTx)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-[11px] font-bold mb-1">
+                                <span class="text-slate-600">진단 민감도 (Sensitivity)</span>
+                                <div class="flex gap-2 items-center"><span class="text-slate-300 line-through font-normal">78%</span><span class="text-blue-600 font-black">94%</span></div>
+                            </div>
+                            <div class="h-2.5 w-full bg-slate-50 rounded-full overflow-hidden flex shadow-inner">
+                                <div class="bg-blue-100 h-full" style="width: 78%"></div>
+                                <div class="bg-blue-600 h-full -ml-2 rounded-r-full shadow-lg" style="width: 18%"></div>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-[11px] font-bold mb-1">
+                                <span class="text-slate-600">진단 특이도 (Specificity)</span>
+                                <div class="flex gap-2 items-center"><span class="text-slate-300 line-through font-normal">82%</span><span class="text-blue-600 font-black">96%</span></div>
+                            </div>
+                            <div class="h-2.5 w-full bg-slate-50 rounded-full overflow-hidden flex shadow-inner">
+                                <div class="bg-blue-100 h-full" style="width: 82%"></div>
+                                <div class="bg-blue-600 h-full -ml-2 rounded-r-full shadow-lg" style="width: 16%"></div>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-[11px] font-bold mb-1">
+                                <span class="text-slate-600">알고리즘 정밀도 (Precision)</span>
+                                <div class="flex gap-2 items-center"><span class="text-slate-300 line-through font-normal">75%</span><span class="text-blue-600 font-black">94.7%</span></div>
+                            </div>
+                            <div class="h-2.5 w-full bg-slate-50 rounded-full overflow-hidden flex shadow-inner">
+                                <div class="bg-blue-100 h-full" style="width: 75%"></div>
+                                <div class="bg-blue-600 h-full -ml-2 rounded-r-full shadow-lg" style="width: 21.7%"></div>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-[11px] font-bold mb-1">
+                                <span class="text-slate-600">전문의 상관계수 (Pearson R)</span>
+                                <div class="flex gap-2 items-center"><span class="text-slate-300 line-through font-normal">68%</span><span class="text-blue-600 font-black">88%</span></div>
+                            </div>
+                            <div class="h-2.5 w-full bg-slate-50 rounded-full overflow-hidden flex shadow-inner">
+                                <div class="bg-blue-100 h-full" style="width: 68%"></div>
+                                <div class="bg-blue-600 h-full -ml-2 rounded-r-full shadow-lg" style="width: 22%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 p-5 bg-blue-50/50 rounded-[1.5rem] border border-blue-100 flex items-start gap-4">
+                        <div class="p-2 bg-white rounded-xl shadow-sm"><i data-lucide="alert-circle" class="text-blue-500" size="18"></i></div>
+                        <div class="space-y-1">
+                            <p class="text-[11px] text-blue-800 leading-relaxed font-bold">고부하(High-load) 가창 데이터 분석 기술의 유효성 검증</p>
+                            <p class="text-[10px] text-blue-600 leading-relaxed">AI Hub 공공데이터와 당사 자체 데이터를 교차 검증한 결과, 즐거운 일상 루틴(가창) 상태에서 신경학적 전조 증상 발견율이 일반 대화 대비 <strong>평균 16.7%p 향상</strong>됨을 확인했습니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Analysis Center -->
+                <div class="bg-white border border-blue-50 rounded-[2.5rem] p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-sm min-h-[350px]" id="analysis-center">
+                    <div id="idle-view" class="text-center space-y-6">
+                        <div class="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mx-auto border border-blue-100 shadow-inner">
+                            <i data-lucide="mic-2" size="36" class="text-blue-200"></i>
+                        </div>
+                        <div class="space-y-2">
+                            <p class="font-bold text-slate-800">진단 준비 완료</p>
+                            <p class="text-slate-400 text-[11px]">음성 입력을 통해 뇌졸중 전조를 스크리닝합니다</p>
+                        </div>
+                    </div>
+
+                    <div id="scanning-view" class="hidden w-full text-center space-y-8">
+                        <div class="relative w-36 h-36 mx-auto">
+                            <svg class="w-full h-full" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="#f1f5f9" stroke-width="6" />
+                                <circle id="progress-circle" class="progress-ring__circle" cx="50" cy="50" r="45" fill="none" stroke="#2563eb" stroke-width="6" stroke-dasharray="283" stroke-dashoffset="283" stroke-linecap="round" />
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span id="progress-text" class="text-3xl font-mono font-black text-slate-900">0%</span>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <p class="text-[11px] font-black text-blue-600 animate-pulse uppercase tracking-[0.25em]">Acoustic Fingerprinting</p>
+                        </div>
+                    </div>
+
+                    <div id="result-view" class="hidden w-full text-center animate-in">
+                        <!-- Result injected here -->
+                    </div>
+                </div>
+
+                <!-- Radar Chart -->
+                <div class="bg-white border border-blue-50 rounded-[2.5rem] p-6 shadow-sm">
+                    <h3 class="text-[10px] font-black text-blue-300 uppercase tracking-widest mb-6">Clinical Maturity Radar</h3>
+                    <div class="bg-[#f8fafc] rounded-[2rem] p-4 aspect-square border border-slate-100 relative">
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="10" fill="none" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3,3" />
+                            <circle cx="50" cy="50" r="20" fill="none" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3,3" />
+                            <circle cx="50" cy="50" r="30" fill="none" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3,3" />
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3,3" />
+                            <circle cx="50" cy="50" r="50" fill="none" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3,3" />
+                            <polygon id="radar-poly" points="50,50 50,50 50,50 50,50 50,50" fill="rgba(37, 99, 235, 0.1)" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" style="transition: all 1s ease-out;" />
+                            <text x="50" y="8" text-anchor="middle" font-size="5" font-weight="bold" fill="#94a3b8">정확도</text>
+                            <text x="94" y="52" text-anchor="middle" font-size="5" font-weight="bold" fill="#94a3b8">안면 동기</text>
+                            <text x="50" y="98" text-anchor="middle" font-size="5" font-weight="bold" fill="#94a3b8">신뢰도</text>
+                            <text x="6" y="52" text-anchor="middle" font-size="5" font-weight="bold" fill="#94a3b8">안정성</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-2 gap-4">
+                    <button class="bg-blue-100/40 hover:bg-blue-100 text-blue-600 p-6 rounded-[2.5rem] transition-all flex flex-col items-center gap-2 group shadow-sm border border-blue-50">
+                        <i data-lucide="share-2" size="24" class="group-hover:scale-110 transition-transform"></i>
+                        <span class="text-[12px] font-black">결과 공유</span>
+                    </button>
+                    <button class="bg-slate-100/50 hover:bg-slate-200 text-slate-600 p-6 rounded-[2.5rem] transition-all flex flex-col items-center gap-2 group shadow-sm border border-slate-100">
+                        <i data-lucide="download" size="24" class="group-hover:scale-110 transition-transform"></i>
+                        <span class="text-[12px] font-black">PDF 저장</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-12 flex flex-wrap gap-12 justify-center py-10 border-t border-blue-100/50">
+            <div class="flex items-center gap-3 opacity-60">
+                <i data-lucide="shield-alert" class="text-blue-500" size="16"></i>
+                <span class="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase">HIPAA / MFDS / GDPR COMPLIANT</span>
+            </div>
+            <div class="flex items-center gap-3 opacity-60">
+                <i data-lucide="activity" class="text-blue-500" size="16"></i>
+                <span class="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase">AI Precision 94.7% (AI Hub Validated)</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const baseline = {
+            jitter: 0.5,
+            shimmer: 3.0,
+            hnr: 20.0,
+            pause_ratio: 0.1
+        };
+
+        function renderMetrics(data = null) {
+            const metrics = [
+                { label: "JITTER (떨림)", value: data ? data.jitter : "0.000", unit: "%", status: "정상", icon: "activity" },
+                { label: "SHIMMER (변동)", value: data ? data.shimmer : "0.000", unit: "%", status: "정상", icon: "trending-up" },
+                { label: "HNR (소음비)", value: data ? data.hnr : "0.0", unit: "dB", status: "정상", icon: "mic-2" },
+                { label: "PAUSE RATIO", value: data ? data.pause_ratio : "0.000", unit: "idx", status: "보정", icon: "history" }
+            ];
+
+            const container = document.getElementById('metrics-grid');
+            container.innerHTML = metrics.map(m => `
+                <div class="bg-white border border-blue-50 p-5 rounded-[2rem] shadow-sm hover:shadow-md transition-all group">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-blue-300 text-[10px] font-bold uppercase tracking-tight flex items-center gap-1 group-hover:text-blue-500 transition-colors">
+                            <i data-lucide="${m.icon}" size="14"></i> ${m.label}
+                        </span>
+                        <span class="text-[9px] font-black px-2 py-0.5 rounded-md ${m.status === '정상' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}">
+                            ${m.status}
+                        </span>
+                    </div>
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-2xl font-mono font-black text-slate-900">${m.value}</span>
+                        <span class="text-slate-400 text-xs font-medium">${m.unit}</span>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function startAnalysis() {
+            const btn = document.getElementById('startBtn');
+            const btnText = document.getElementById('btnText');
+            const idleView = document.getElementById('idle-view');
+            const scanningView = document.getElementById('scanning-view');
+            const resultView = document.getElementById('result-view');
+            const progressCircle = document.getElementById('progress-circle');
+            const progressText = document.getElementById('progress-text');
+
+            btn.disabled = true;
+            btnText.innerText = "분석 중...";
+            idleView.classList.add('hidden');
+            resultView.classList.add('hidden');
+            scanningView.classList.remove('hidden');
+
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                const offset = 283 - (283 * progress / 100);
+                progressCircle.style.strokeDashoffset = offset;
+                progressText.innerText = `${progress}%`;
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    showResult();
+                }
+            }, 100);
+        }
+
+        function showResult() {
+            const mockFeatures = {
+                jitter: (0.8 + Math.random() * 0.1).toFixed(3),
+                shimmer: (4.1 + Math.random() * 0.2).toFixed(3),
+                hnr: (16.5 + Math.random() * 1.5).toFixed(1),
+                pause_ratio: (0.22 + Math.random() * 0.05).toFixed(3)
+            };
+
+            const jitter_risk = Math.max(0, (mockFeatures.jitter - baseline.jitter) / 0.2);
+            const shimmer_risk = Math.max(0, (mockFeatures.shimmer - baseline.shimmer) / 1.0);
+            const pause_risk = Math.max(0, (mockFeatures.pause_ratio - baseline.pause_ratio) / 0.05);
+            const total_risk = (jitter_risk * 0.4 + shimmer_risk * 0.3 + pause_risk * 0.3) * 20;
+            const score = Math.min(100, total_risk).toFixed(1);
+
+            let statusText = "정상 (NORMAL)";
+            let statusColor = "text-emerald-600 bg-emerald-50 border-emerald-200";
+            let statusIcon = "check-circle-2";
+
+            if (score > 70) {
+                statusText = "고위험 (HIGH RISK)";
+                statusColor = "text-rose-600 bg-rose-50 border-rose-200";
+                statusIcon = "shield-alert";
+            } else if (score > 40) {
+                statusText = "주의 (MONITORING)";
+                statusColor = "text-amber-600 bg-amber-50 border-amber-200";
+                statusIcon = "alert-circle";
+            }
+
+            const resultContainer = document.getElementById('result-view');
+            resultContainer.innerHTML = `
+                <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full mb-6 font-black text-[10px] border shadow-sm ${statusColor}">
+                    <i data-lucide="${statusIcon}" size="16"></i>
+                    ${statusText}
+                </div>
+                <h3 class="text-7xl font-mono font-black text-slate-900 mb-2 leading-none tracking-tighter">${score}</h3>
+                <p class="text-blue-300 text-[11px] font-black uppercase tracking-widest mb-8">Neuro-Vital Risk Index</p>
+                <div class="grid grid-cols-2 gap-3 mb-8">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-left">
+                        <p class="text-[9px] font-black text-slate-400 uppercase mb-1">Tremor Status</p>
+                        <p class="text-sm font-black ${jitter_risk > 1.5 ? 'text-rose-600' : 'text-slate-700'}">${jitter_risk > 1.5 ? '심함 (HIGH)' : '안정 (STABLE)'}</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-left">
+                        <p class="text-[9px] font-black text-slate-400 uppercase mb-1">Speech Clarity</p>
+                        <p class="text-sm font-black ${pause_risk > 1.2 ? 'text-rose-600' : 'text-slate-700'}">${pause_risk > 1.2 ? '낮음 (LOW)' : '보통 (NORMAL)'}</p>
+                    </div>
+                </div>
+                <button class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20">
+                    정밀 AI 분석 리포트 확인 <i data-lucide="arrow-up-right" size="16"></i>
+                </button>
+            `;
+
+            document.getElementById('scanning-view').classList.add('hidden');
+            resultContainer.classList.remove('hidden');
+            
+            const btn = document.getElementById('startBtn');
+            btn.disabled = false;
+            document.getElementById('btnText').innerText = "진단 시작";
+
+            renderMetrics(mockFeatures);
+            updateRadar();
+            lucide.createIcons();
+        }
+
+        function updateRadar() {
+            // Randomize radar points for visual effect
+            const points = [
+                `50,${20 + Math.random() * 10}`,
+                `${80 + Math.random() * 5},45`,
+                `${70 + Math.random() * 5},80`,
+                `${30 - Math.random() * 5},80`,
+                `${15 + Math.random() * 5},45`
+            ].join(' ');
+            document.getElementById('radar-poly').setAttribute('points', points);
+        }
+
+        // Initial Render
+        window.onload = () => {
+            renderMetrics();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>

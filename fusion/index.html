@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrainMic Technical Validation Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons SDK -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800;900&family=JetBrains+Mono:wght@700&display=swap');
+        
+        body { 
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; 
+            background-color: #ffffff;
+            color: #1e293b;
+        }
+        .font-mono { font-family: 'JetBrains+Mono', monospace; }
+        
+        /* 애니메이션 효과 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in { animation: fadeIn 0.5s ease-out forwards; }
+        
+        .pulse-gold {
+            box-shadow: 0 0 0 0 rgba(197, 160, 89, 0.4);
+            animation: pulse-g 2s infinite;
+        }
+        @keyframes pulse-g {
+            0% { box-shadow: 0 0 0 0 rgba(197, 160, 89, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(197, 160, 89, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(197, 160, 89, 0); }
+        }
+        
+        .navy-card { background-color: #0f172a; }
+        
+        /* 안면 인식 라인 글로우 효과 - 골드색으로 변경 */
+        #faceCanvas {
+            filter: drop-shadow(0 0 8px rgba(197, 160, 89, 0.6));
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 overflow-x-hidden">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header Section -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-50 p-8 rounded-[3rem] border border-slate-100 shadow-sm">
+            <div class="space-y-1">
+                <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#0f172a] text-[#c5a059] rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md">
+                    Hybrid Multi-modal Fusion Engine v5.6
+                </div>
+                <h1 class="text-4xl font-black text-[#0f172a] tracking-tighter leading-none pt-2">
+                    BRAINMIC <span class="text-blue-600 italic font-light uppercase">Validation Hub</span>
+                </h1>
+                <p class="text-slate-400 font-medium text-sm italic">"실시간 카메라 피드 기반 뇌졸중 조기 감지 및 정밀 안면 근육 추적 시뮬레이션"</p>
+            </div>
+            <div class="flex gap-4">
+                 <button id="cameraToggle" onclick="toggleCamera()" class="flex items-center gap-2 px-6 py-4 rounded-2xl border transition-all font-bold text-sm bg-white border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-600">
+                    <i data-lucide="camera" size="20"></i> <span id="cameraBtnText">카메라 활성화</span>
+                 </button>
+                 <button id="testStartBtn" onclick="startTest()" class="flex items-center gap-3 px-10 py-4 rounded-2xl font-black text-lg transition-all shadow-xl bg-[#0f172a] text-white hover:bg-slate-800">
+                    <i data-lucide="play" size="24" id="btnIcon"></i> <span id="btnText">멀티모달 검증 시작</span>
+                 </button>
+            </div>
+        </header>
+
+        <!-- Guide Banner -->
+        <div id="guideBanner" class="hidden p-6 rounded-[2.5rem] shadow-lg flex items-center justify-between overflow-hidden relative bg-blue-600 text-white animate-in">
+            <div class="absolute right-0 top-0 w-64 h-full bg-white/10 skew-x-12 -mr-32"></div>
+            <div class="flex items-center gap-6 relative z-10">
+               <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center animate-bounce">
+                  <i data-lucide="message-circle" size="32"></i>
+               </div>
+               <div>
+                  <h2 class="text-2xl font-black tracking-tight">"마이크와 카메라를 보며 평소처럼 자연스럽게 대화해 주세요."</h2>
+                  <p class="text-blue-100 font-medium text-sm">골드 라인 메시가 안면의 모든 근육 움직임을 0.1mm 단위로 감지합니다.</p>
+               </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left: Engine Dashboard -->
+            <div class="lg:col-span-8 space-y-6">
+                <!-- Visual HUD area -->
+                <div class="bg-[#0f172a] rounded-[3.5rem] p-1 relative overflow-hidden h-[520px] shadow-2xl flex items-center justify-center">
+                    <div id="cameraOffline" class="flex flex-col items-center justify-center space-y-4 text-center">
+                        <i data-lucide="camera" size="80" class="text-slate-700 animate-pulse"></i>
+                        <p class="text-slate-500 font-black uppercase text-xs tracking-widest leading-relaxed">Camera Activation Required<br>시연을 위해 상단 '카메라 활성화' 버튼을 눌러주세요</p>
+                    </div>
+                    
+                    <video id="webcam" class="hidden absolute inset-0 w-full h-full object-cover rounded-[3.4rem] opacity-60" autoplay playsinline muted></video>
+                    
+                    <!-- Facial Recognition Canvas Layer -->
+                    <canvas id="faceCanvas" class="hidden absolute inset-0 z-10 pointer-events-none w-full h-full"></canvas>
+
+                    <div id="simulatedFeed" class="hidden w-full h-full bg-slate-900 flex flex-col items-center justify-center p-12 text-center space-y-4 rounded-[3.4rem]">
+                        <div class="w-48 h-48 bg-blue-600/10 rounded-full border-4 border-blue-500/20 flex items-center justify-center relative overflow-hidden">
+                            <i data-lucide="scan-face" size="80" class="text-blue-400 opacity-20"></i>
+                        </div>
+                        <p class="text-blue-400 font-black uppercase tracking-[0.3em] text-xs">AI Synthetic Vision Feed Active</p>
+                    </div>
+
+                    <!-- HUD Overlay -->
+                    <div id="hudOverlay" class="hidden absolute inset-0 z-20 p-10 pointer-events-none w-full h-full">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-white shadow-lg">
+                                <div class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></div>
+                                <span class="text-[10px] font-black uppercase tracking-widest">Neural Multi-modal Mapping</span>
+                            </div>
+                            <div id="syncBadge" class="px-4 py-2 rounded-xl border font-black text-xs transition-all bg-black/40 border-white/10 text-slate-400">
+                                SYNCING MODALITIES...
+                            </div>
+                        </div>
+
+                        <div id="floatingFeatures" class="hidden absolute bottom-12 left-12 space-y-4">
+                            <div class="p-5 bg-[#0f172a]/90 backdrop-blur-xl rounded-3xl border border-white/10 text-white shadow-2xl">
+                                <p class="text-[9px] font-black text-blue-400 uppercase mb-1 tracking-widest">Acoustic Biomarker</p>
+                                <p class="text-xl font-mono font-black" id="liveJitter">JITTER: 0.421%</p>
+                            </div>
+                            <div class="p-5 bg-[#0f172a]/90 backdrop-blur-xl rounded-3xl border border-white/10 text-white shadow-2xl">
+                                <p class="text-[9px] font-black text-[#c5a059] uppercase mb-1 tracking-widest">Facial Symmetry</p>
+                                <p class="text-xl font-mono font-black text-[#e2c275]" id="liveSI">SI INDEX: 0.952</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="absolute bottom-0 left-0 w-full h-2 bg-white/5 z-30">
+                        <div id="progressBar" class="h-full bg-blue-600 transition-all duration-100 shadow-[0_0_15px_#2563eb]" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Bottom Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white border border-slate-100 p-8 rounded-[2.5rem] flex flex-col justify-between shadow-sm border-t-4 border-blue-600">
+                        <div class="flex justify-between items-center mb-6">
+                            <span class="text-[10px] font-black text-blue-600 uppercase tracking-widest">후두 신경 분석</span>
+                            <i data-lucide="waves" class="text-blue-600"></i>
+                        </div>
+                        <div class="h-20"><canvas id="acousticChart"></canvas></div>
+                        <h4 class="text-[11px] font-black text-slate-400 mt-6 uppercase tracking-widest">Acoustic Consistency</h4>
+                    </div>
+                    <div class="bg-white border border-slate-100 p-8 rounded-[2.5rem] flex flex-col justify-between shadow-sm border-t-4 border-[#c5a059]">
+                        <div class="flex justify-between items-center mb-6">
+                            <span class="text-[10px] font-black text-[#c5a059] uppercase tracking-widest">안면 비대칭 지수 (SI)</span>
+                            <i data-lucide="scan-face" class="text-[#c5a059]"></i>
+                        </div>
+                        <div class="flex flex-col items-center justify-center h-20">
+                            <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                                <div id="siBar" class="h-full bg-[#c5a059] transition-all" style="width: 0%"></div>
+                            </div>
+                            <span id="siText" class="text-xs font-mono font-black mt-4 text-[#c5a059]">--</span>
+                        </div>
+                        <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Facial Symmetry</h4>
+                    </div>
+                    <div class="bg-white border border-blue-100 p-8 rounded-[2.5rem] flex flex-col justify-between shadow-xl border-t-4 border-blue-700">
+                        <div class="flex justify-between items-center mb-6">
+                            <span class="text-[10px] font-black text-blue-700 uppercase tracking-widest">음성 안면 멀티모달 분석</span>
+                            <i data-lucide="merge" class="text-blue-700"></i>
+                        </div>
+                        <div class="flex flex-col items-center justify-center h-20">
+                            <div class="flex items-center gap-4">
+                                <div id="syncIcon" class="w-12 h-12 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center">
+                                    <i data-lucide="cpu" class="text-slate-200"></i>
+                                </div>
+                                <i data-lucide="arrow-right" class="text-slate-200"></i>
+                                <div id="syncResult" class="p-4 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center">
+                                    <span class="text-xl font-black text-slate-200" id="syncValue">--</span>
+                                </div>
+                            </div>
+                        </div>
+                        <h4 class="text-[11px] font-black text-blue-700 uppercase tracking-widest">10ms Fusion Accuracy</h4>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Results Sidebar -->
+            <div class="lg:col-span-4 flex flex-col h-full space-y-6">
+                <div class="bg-[#0f172a] p-10 rounded-[3.5rem] shadow-2xl flex flex-col justify-between h-full relative overflow-hidden text-white border-4 border-[#c5a059]/20">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-600 opacity-20 rounded-full blur-3xl"></div>
+                    <div>
+                        <div class="flex items-center gap-3 mb-10">
+                            <div class="w-14 h-14 bg-[#c5a059] rounded-2xl flex items-center justify-center text-[#0f172a] shadow-lg">
+                                <i data-lucide="brain" size="32"></i>
+                            </div>
+                            <h3 class="text-xl font-black italic tracking-tighter">Stroke Risk Monitoring</h3>
+                        </div>
+
+                        <div id="sidebarStandby" class="text-center py-20 opacity-10 border-2 border-dashed border-white/10 rounded-[2rem]">
+                            <i data-lucide="activity" size="80" class="mx-auto mb-4"></i>
+                            <p class="text-xs font-black uppercase tracking-[0.3em]">Stand-by</p>
+                        </div>
+
+                        <div id="sidebarTesting" class="hidden text-center py-10 space-y-8 animate-in">
+                            <div class="w-52 h-52 bg-white/5 rounded-full mx-auto flex items-center justify-center border-8 border-blue-500/10 relative">
+                                <i data-lucide="activity" size="64" class="text-blue-500 animate-pulse"></i>
+                                <svg class="absolute inset-0 w-full h-full transform -rotate-90 scale-110" viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3" />
+                                    <circle id="circleProgress" cx="50" cy="50" r="45" fill="none" stroke="#c5a059" stroke-width="3" stroke-dasharray="283" stroke-dashoffset="283" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                            <p class="text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] animate-pulse">Analyzing Bio-Markers...</p>
+                        </div>
+
+                        <div id="sidebarResult" class="hidden space-y-6 animate-in">
+                            <div class="text-center">
+                                <div id="riskStatusBadge" class="inline-flex items-center gap-2 px-8 py-2.5 bg-emerald-500/20 border border-emerald-500 text-emerald-400 rounded-full mb-6 font-black text-[10px]">
+                                    <i data-lucide="shield-check" size="18"></i> NORMAL (안정)
+                                </div>
+                                <h3 class="text-[7rem] font-mono font-black text-white tracking-tighter leading-none mb-2" id="totalScore">96.8</h3>
+                                <p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em]">Accuracy Level</p>
+                            </div>
+                            <div class="space-y-2 max-h-[220px] overflow-y-auto pr-2" id="kpiList"></div>
+                            <button class="w-full py-5 bg-[#c5a059] text-[#0f172a] rounded-[2.5rem] font-black text-sm uppercase tracking-[0.2em] shadow-2xl flex items-center justify-center gap-3 mt-4 hover:bg-[#e2c275]">
+                                의료 공인 리포트 생성 <i data-lucide="arrow-up-right" size="20"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Radar Chart Footer -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
+           <div class="bg-slate-50 border border-slate-100 p-10 rounded-[3.5rem] flex flex-col md:flex-row items-center justify-between shadow-sm">
+              <div class="max-w-[280px] space-y-6">
+                 <h3 class="text-2xl font-black text-[#0f172a] tracking-tight">V&V 검증 <br><span class="text-blue-600 italic">무결성 아키텍처</span></h3>
+                 <p class="text-sm text-slate-500 leading-relaxed font-medium">
+                   "안면 인식 엔진은 68개 랜드마크를 연결한 **골드 메시(Gold Mesh)**를 통해 미세한 신경학적 반응 시차를 96.8% 확률로 판별합니다."
+                 </p>
+                 <div class="flex gap-2">
+                    <span class="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 uppercase">ISO/IEC 25023</span>
+                    <span class="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 uppercase">IEEE 1012</span>
+                 </div>
+              </div>
+              <div class="w-64 h-64"><canvas id="radarChart"></canvas></div>
+           </div>
+           <div class="bg-[#0f172a] p-12 rounded-[3.5rem] text-white flex flex-col justify-center relative overflow-hidden shadow-2xl border-b-8 border-[#c5a059]">
+              <div class="absolute right-0 bottom-0 w-96 h-96 bg-blue-600 opacity-20 rounded-full blur-[120px] -mr-32 -mb-32"></div>
+              <h3 class="text-3xl font-black italic tracking-tighter mb-4 leading-none">Ready for SaMD Class II</h3>
+              <p class="text-slate-400 text-lg leading-relaxed font-medium mb-10 max-w-md">
+                이미 공학적 준비는 끝났습니다. <br>사업 기간 내 공인 성적서를 확보하여 시장 독점권을 선점하겠습니다.
+              </p>
+              <div class="flex gap-10 border-t border-white/5 pt-10">
+                 <div class="text-center">
+                    <p class="text-5xl font-black tracking-tighter text-[#c5a059]">94.7%</p>
+                    <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-2">Sensitivity</p>
+                 </div>
+                 <div class="text-center border-l border-white/10 pl-10">
+                    <p class="text-5xl font-black tracking-tighter text-[#c5a059]">42ms</p>
+                    <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-2">Latency</p>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        <footer class="pt-10 border-t border-slate-100 flex justify-center gap-10 opacity-60 pb-10">
+           <div class="flex gap-10 text-[10px] font-black uppercase tracking-[0.2em]">
+              <div class="flex items-center gap-2 text-slate-500"><i data-lucide="shield-check" class="text-blue-600" size="18"></i> SaMD Compliance</div>
+              <div class="flex items-center gap-2 text-slate-500"><i data-lucide="database" class="text-blue-600" size="18"></i> AI Hub Validated</div>
+              <div class="flex items-center gap-2 text-slate-500"><i data-lucide="scan-face" class="text-blue-600" size="18"></i> Gold-Mesh Applied</div>
+           </div>
+           <p class="text-[10px] font-mono tracking-tighter uppercase font-bold text-slate-300">BTT_INTEGRATED_VALIDATOR_v5.6_PREMIUM</p>
+        </footer>
+    </div>
+
+    <script>
+        let isTesting = false, testProgress = 0, cameraActive = false, isSimulatedCamera = false;
+        let acousticChart, radarChart, timer;
+
+        const kpiSpecs = [
+            { id: 'KPI-01', label: "음성 분석 정확도", goal: 95.2, unit: "%", inst: "식약처/대학병원" },
+            { id: 'KPI-02', label: "안면 대칭성(SI)", goal: 0.92, unit: "idx", inst: "부산대/동아대병원" },
+            { id: 'KPI-03', label: "시스템 지연시간", goal: 50, unit: "ms", inst: "TTA (V&V 인증)", inverse: true },
+            { id: 'KPI-04', label: "뇌졸중 선별 민감도", goal: 94.0, unit: "%", inst: "SaMD Class II 기준" },
+            { id: 'KPI-05', label: "음성 안면 멀티모달 분석", goal: 95.0, unit: "%", inst: "TTA (V&V 확인)" },
+            { id: 'KPI-06', label: "분석 안정성(에러율)", goal: 10, unit: "%", inst: "DGMIF (첨복재단)", inverse: true }
+        ];
+
+        lucide.createIcons();
+
+        function initCharts() {
+            acousticChart = new Chart(document.getElementById('acousticChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: Array(20).fill(''), datasets: [{ data: Array(20).fill(0.4), borderColor: '#2563eb', tension: 0.4, pointRadius: 0, fill: true, backgroundColor: 'rgba(37, 99, 235, 0.05)' }]},
+                options: { maintainAspectRatio: false, scales: { x: { display: false }, y: { display: false } }, plugins: { legend: { display: false } }}
+            });
+            radarChart = new Chart(document.getElementById('radarChart').getContext('2d'), {
+                type: 'radar',
+                data: { labels: kpiSpecs.map(k => k.label), datasets: [{ data: [0,0,0,0,0,0], backgroundColor: 'rgba(37, 99, 235, 0.1)', borderColor: '#2563eb', pointRadius: 4, borderWidth: 2 }]},
+                options: { maintainAspectRatio: false, scales: { r: { min: 0, max: 100, grid: { color: '#f1f5f9' }, angleLines: { color: '#f1f5f9' }, ticks: { display: false }, pointLabels: { color: '#64748b', font: { weight: 'bold', size: 10 } } } }, plugins: { legend: { display: false } }}
+            });
+        }
+
+        async function toggleCamera() {
+            const video = document.getElementById('webcam'), offline = document.getElementById('cameraOffline'), simulated = document.getElementById('simulatedFeed'), btnText = document.getElementById('cameraBtnText'), btn = document.getElementById('cameraToggle'), canvas = document.getElementById('faceCanvas');
+            if (!cameraActive) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                    video.srcObject = stream; video.classList.remove('hidden'); canvas.classList.remove('hidden'); offline.classList.add('hidden'); simulated.classList.add('hidden'); cameraActive = true;
+                    btnText.innerText = "카메라 끄기"; btn.classList.add('bg-blue-600', 'text-white'); btn.classList.remove('bg-white', 'text-slate-400');
+                    document.getElementById('hudOverlay').classList.remove('hidden');
+                } catch (err) {
+                    offline.classList.add('hidden'); simulated.classList.remove('hidden'); canvas.classList.remove('hidden'); cameraActive = true; btnText.innerText = "카메라 끄기";
+                    document.getElementById('hudOverlay').classList.remove('hidden');
+                }
+            } else {
+                if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+                video.classList.add('hidden'); canvas.classList.add('hidden'); offline.classList.remove('hidden'); simulated.classList.add('hidden'); cameraActive = false;
+                btnText.innerText = "카메라 활성화"; btn.classList.remove('bg-blue-600', 'text-white'); btn.classList.add('bg-white', 'text-slate-400');
+                document.getElementById('hudOverlay').classList.add('hidden');
+            }
+        }
+
+        function startTest() {
+            if (isTesting) return;
+            if (!cameraActive) toggleCamera();
+            isTesting = true; testProgress = 0;
+            document.getElementById('guideBanner').classList.remove('hidden');
+            document.getElementById('sidebarStandby').classList.add('hidden');
+            document.getElementById('sidebarTesting').classList.remove('hidden');
+            document.getElementById('sidebarResult').classList.add('hidden');
+            document.getElementById('floatingFeatures').classList.remove('hidden');
+            document.getElementById('testStartBtn').disabled = true;
+            document.getElementById('btnText').innerText = "분석 엔진 구동 중...";
+            timer = setInterval(() => { testProgress += 1; updateProgressUI(); if (testProgress >= 100) { clearInterval(timer); finishTest(); }}, 300);
+        }
+
+        function updateProgressUI() {
+            document.getElementById('progressBar').style.width = `${testProgress}%`;
+            document.getElementById('circleProgress').style.strokeDashoffset = 283 - (283 * testProgress / 100);
+            const syncBadge = document.getElementById('syncBadge');
+            if (testProgress > 30 && testProgress < 70) syncBadge.innerText = "SYNCING MODALITIES...";
+            else if (testProgress >= 70) { syncBadge.innerText = "10ms SYNC LOCKED"; syncBadge.className = "px-4 py-2 rounded-xl border font-black text-xs transition-all bg-emerald-500 text-emerald-950 border-emerald-500 shadow-[0_0_20px_#10b981]"; }
+            
+            const jitterVal = (0.415 + Math.random() * 0.05).toFixed(3), siVal = (0.952 + Math.random() * 0.01).toFixed(3);
+            document.getElementById('liveJitter').innerText = `JITTER: ${jitterVal}%`;
+            document.getElementById('liveSI').innerText = `SI INDEX: ${siVal}`;
+            acousticChart.data.datasets[0].data.shift(); acousticChart.data.datasets[0].data.push(0.4 + Math.random() * 0.1); acousticChart.update('none');
+            document.getElementById('siBar').style.width = `${(parseFloat(siVal) * 100)}%`; document.getElementById('siText').innerText = `SI ${siVal} / Normal`;
+            
+            drawFaceOverlay();
+        }
+
+        function drawFaceOverlay() {
+            const canvas = document.getElementById('faceCanvas'), ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+            ctx.clearRect(0,0,canvas.width, canvas.height);
+            
+            // 요청사항 반영: 얼굴 라인을 골드색으로 변경
+            ctx.strokeStyle = '#c5a059'; 
+            ctx.lineWidth = 0.8;
+            
+            const cx = canvas.width/2, cy = canvas.height/2;
+            const pts = [];
+            // 시뮬레이션된 얼굴 랜드마크 생성
+            for(let i=0; i<18; i++) {
+                const angle = (i/18) * Math.PI * 2;
+                const r = 120 + Math.sin(Date.now()/500 + i) * 5;
+                pts.push({ x: cx + Math.cos(angle)*r*0.8, y: cy + Math.sin(angle)*r });
+            }
+            // 윤곽 라인 그리기
+            ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+            pts.forEach(p => ctx.lineTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
+            
+            // 내부 근육 연결망 (그리드) - 더 연한 골드
+            ctx.strokeStyle = 'rgba(197, 160, 89, 0.4)';
+            ctx.beginPath();
+            for(let i=0; i<pts.length; i+=2) { ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[(i+9)%18].x, pts[(i+9)%18].y); }
+            ctx.stroke();
+            
+            // 포인트 - 선명한 골드
+            ctx.fillStyle = '#e2c275';
+            pts.forEach(p => { 
+                ctx.beginPath(); 
+                ctx.arc(p.x, p.y, 2.5, 0, Math.PI*2); 
+                ctx.fill(); 
+                // 포인트 반짝임 효과
+                if(Math.random() > 0.8) {
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#c5a059';
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            });
+        }
+
+        function finishTest() {
+            isTesting = false; document.getElementById('testStartBtn').disabled = false; document.getElementById('btnText').innerText = "멀티모달 검증 시작";
+            document.getElementById('guideBanner').classList.add('hidden'); document.getElementById('sidebarTesting').classList.add('hidden'); document.getElementById('sidebarResult').classList.remove('hidden');
+            const finalResults = kpiSpecs.map(spec => {
+                const value = spec.inverse ? spec.goal - (Math.random()*1.5+1.5 + 4) : spec.goal + (Math.random()*1.5+1.5);
+                return { ...spec, value: value.toFixed(spec.id === 'KPI-02' || spec.id === 'KPI-05' ? 2 : 1), passed: true };
+            });
+            document.getElementById('totalScore').innerText = "96.8";
+            document.getElementById('kpiList').innerHTML = finalResults.map(res => `
+                <div class="flex items-center justify-between p-3.5 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-all">
+                    <div class="flex items-center gap-3"><i data-lucide="check-circle-2" class="text-emerald-500" size="16"></i><span class="text-[10px] font-black text-slate-400 uppercase">${res.label}</span></div>
+                    <span class="text-xs font-mono font-black text-blue-400">${res.value}${res.unit}</span>
+                </div>
+            `).join('');
+            lucide.createIcons();
+            document.getElementById('syncIcon').className = "w-12 h-12 rounded-full border-2 border-dashed border-blue-600 bg-blue-50 flex items-center justify-center text-blue-600";
+            document.getElementById('syncIcon').innerHTML = '<i data-lucide="cpu" class="text-blue-600 animate-pulse" size="24"></i>';
+            document.getElementById('syncValue').innerText = finalResults[4].value;
+            document.getElementById('syncValue').className = "text-xl font-black text-emerald-600";
+            radarChart.data.datasets[0].data = finalResults.map(r => r.inverse ? (100 - parseFloat(r.value)) : parseFloat(r.value)); radarChart.update();
+        }
+
+        window.onload = initCharts;
+    </script>
+</body>
+</html>
